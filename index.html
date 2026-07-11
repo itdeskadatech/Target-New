@@ -297,12 +297,17 @@ body.tv h1{ font-size:36px; }
 }
 .tl-group-name{ font-family:'Space Grotesk'; font-weight:600; font-size:14.5px; }
 .tl-group-sub{ font-size:11.5px; color:var(--muted); margin-top:2px; }
-.tl-group-pct{ font-family:'Space Grotesk'; font-weight:700; font-size:18px; color:var(--blue); }
+.tl-group-pct{ font-family:'Space Grotesk'; font-weight:700; font-size:22px; color:var(--blue); text-align:right; }
+.tl-group-total{ display:flex; flex-direction:column; align-items:flex-end; }
+.tl-group-caption{ font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; margin-top:2px; }
 .tl-cards{ display:grid; grid-template-columns:repeat(auto-fill, minmax(240px,1fr)); gap:12px; }
 .tl-card{ padding:14px; }
 .tl-card .rank-badge{ width:30px; height:30px; font-size:12px; }
 .tl-card .avatar{ width:34px; height:34px; font-size:12px; }
 .tl-card .mcard-name{ font-size:13.5px; }
+.mstats.achieved-only{ grid-template-columns:1fr; margin-top:14px; }
+.mstat.wide{ padding:14px 4px; }
+.mstat.wide .v{ font-size:24px; }
 
 @media(max-width:700px){
   .charts-grid{ grid-template-columns:1fr; }
@@ -618,7 +623,8 @@ function computeBadges(){
   return { topPerformer, fastestGrowing, closest: closest ? closest.name : null };
 }
 
-function buildCard(m, rank, badges){
+function buildCard(m, rank, badges, opts={}){
+  const showTarget = opts.showTarget !== false;
   const remaining = Math.max(0, m.target-m.achieved);
   const pct = m.target ? (m.achieved/m.target*100) : 0;
   const div = document.createElement('div');
@@ -633,15 +639,7 @@ function buildCard(m, rank, badges){
   if(badges.fastestGrowing===m.name) chips += `<span class="badge-chip badge-fast">🔥 FASTEST GROWING</span>`;
   if(badges.closest===m.name && badges.closest!==badges.topPerformer) chips += `<span class="badge-chip badge-close">🎯 CLOSEST TO TARGET</span>`;
 
-  div.innerHTML = `
-    <div class="mcard-top">
-      <div class="rank-badge ${rankClass}">${rank<=3? ['🥇','🥈','🥉'][rank-1] : '#'+rank}</div>
-      <div class="avatar">${initials(m.name)}</div>
-      <div>
-        <div class="mcard-name">${m.name}</div>
-        <div class="badges">${chips}</div>
-      </div>
-    </div>
+  const statsBlock = showTarget ? `
     <div class="mstats">
       <div class="mstat"><div class="v">${m.target}</div><div class="l">Target</div></div>
       <div class="mstat achv"><div class="v" data-role="achv">${m.achieved}</div><div class="l">Achieved</div></div>
@@ -651,6 +649,22 @@ function buildCard(m, rank, badges){
       <div class="progress-label"><span>Target Progress</span><b data-role="pct">${pct.toFixed(1)}%</b></div>
       <div class="progress-track"><div class="progress-fill" data-role="bar" style="width:0%"></div></div>
     </div>
+  ` : `
+    <div class="mstats achieved-only">
+      <div class="mstat achv wide"><div class="v" data-role="achv">${m.achieved}</div><div class="l">Achieved</div></div>
+    </div>
+  `;
+
+  div.innerHTML = `
+    <div class="mcard-top">
+      <div class="rank-badge ${rankClass}">${rank<=3? ['🥇','🥈','🥉'][rank-1] : '#'+rank}</div>
+      <div class="avatar">${initials(m.name)}</div>
+      <div>
+        <div class="mcard-name">${m.name}</div>
+        <div class="badges">${chips}</div>
+      </div>
+    </div>
+    ${statsBlock}
   `;
   return div;
 }
@@ -765,9 +779,7 @@ function renderTLGroups(){
   wrap.innerHTML = '';
   filtered.forEach(groupName=>{
     const groupTls = [...grouped[groupName]].sort((a,b)=>b.achieved-a.achieved);
-    const groupTarget = groupTls.reduce((s,t)=>s+t.target,0);
     const groupAchieved = groupTls.reduce((s,t)=>s+t.achieved,0);
-    const groupPct = groupTarget ? (groupAchieved/groupTarget*100) : 0;
 
     const section = document.createElement('div');
     section.className = 'tl-group';
@@ -777,16 +789,19 @@ function renderTLGroups(){
           <span class="tl-group-avatar">${initials(groupName)}</span>
           <div>
             <div class="tl-group-name">Reporting to ${groupName}</div>
-            <div class="tl-group-sub">${groupTls.length} Team Lead${groupTls.length>1?'s':''} · ${groupAchieved}/${groupTarget} achieved</div>
+            <div class="tl-group-sub">${groupTls.length} Team Lead${groupTls.length>1?'s':''}</div>
           </div>
         </div>
-        <div class="tl-group-pct">${groupPct.toFixed(1)}%</div>
+        <div class="tl-group-total">
+          <div class="tl-group-pct">${groupAchieved}</div>
+          <div class="tl-group-caption">Total Achieved</div>
+        </div>
       </div>
       <div class="tl-cards"></div>
     `;
     const cardHolder = section.querySelector('.tl-cards');
     groupTls.forEach((t,i)=>{
-      const card = buildCard(t, i+1, {});
+      const card = buildCard(t, i+1, {}, {showTarget:false});
       card.classList.add('tl-card');
       card.style.opacity='0'; card.style.transform='translateY(10px)';
       cardHolder.appendChild(card);
@@ -795,17 +810,9 @@ function renderTLGroups(){
         card.style.opacity='1'; card.style.transform='translateY(0)';
       });
 
-      const pct = t.target ? (t.achieved/t.target*100) : 0;
-      const remaining = Math.max(0, t.target-t.achieved);
       countUp(card.querySelector('[data-role="achv"]'), t.achieved);
-      countUp(card.querySelector('[data-role="rem"]'), remaining);
-      countUp(card.querySelector('[data-role="pct"]'), pct, {decimals:1, suffix:'%'});
-      const bar = card.querySelector('[data-role="bar"]');
-      requestAnimationFrame(()=> bar.style.width = Math.min(100,pct)+'%');
       if(t.achieved !== t.prevAchieved){
         flashCard(card);
-        bar.classList.add('pulse');
-        setTimeout(()=>bar.classList.remove('pulse'), 1000);
       }
     });
     wrap.appendChild(section);
