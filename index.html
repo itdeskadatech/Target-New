@@ -256,24 +256,6 @@ body{ padding: 28px clamp(14px,3vw,40px) 60px; }
 .footer-banner .line1{ font-family:'Space Grotesk'; font-weight:700; font-size:15px; letter-spacing:.5px; color:var(--white); }
 .footer-banner .line2{ font-family:'Space Grotesk'; font-weight:700; font-size:26px; background:linear-gradient(90deg,var(--orange),var(--gold)); -webkit-background-clip:text; background-clip:text; color:transparent; margin-top:4px;}
 
-/* ---------- modal ---------- */
-.modal-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.6); backdrop-filter:blur(4px); display:none; align-items:center; justify-content:center; z-index:50; }
-.modal-backdrop.open{ display:flex; }
-.modal{
-  width:min(460px,92vw); background:#0d0e15; border:1px solid var(--glass-brd); border-radius:18px; padding:22px;
-  box-shadow:var(--shadow);
-}
-.modal h3{ font-family:'Space Grotesk'; margin-bottom:6px; }
-.modal p{ font-size:12.5px; color:var(--muted); margin-bottom:14px; line-height:1.5; }
-.modal label{ font-size:12px; color:var(--muted); display:block; margin:10px 0 5px; }
-.modal input{ width:100%; background:#15161f; border:1px solid var(--glass-brd); color:var(--white); border-radius:10px; padding:10px 12px; font-size:13px; outline:none; }
-.modal input:focus{ border-color:var(--orange); }
-.modal-actions{ display:flex; gap:10px; margin-top:18px; }
-.btn{ flex:1; padding:10px 14px; border-radius:10px; border:none; cursor:pointer; font-weight:600; font-size:13px; }
-.btn-primary{ background:linear-gradient(90deg,var(--orange),var(--gold)); color:#180c00; }
-.btn-ghost{ background:transparent; border:1px solid var(--glass-brd); color:var(--white); }
-.modal small.warn{ display:block; margin-top:10px; color:#ff8fa3; font-size:11px; }
-
 /* ---------- TV mode ---------- */
 body.tv .icon-btn, body.tv .search-wrap, body.tv .section-head .tag{ display:none !important; }
 body.tv{ padding:34px 46px; }
@@ -345,7 +327,6 @@ body.tv h1{ font-size:36px; }
   </div>
   <div class="status-cluster">
     <div class="pill"><span class="live-dot"></span> <span id="liveLabel">LIVE · DEMO DATA</span></div>
-    <button class="icon-btn" id="btnSheet" title="Connect Google Sheet">🔗</button>
     <button class="icon-btn" id="btnTv" title="TV Display Mode">🖥️</button>
     <button class="icon-btn" id="btnPng" title="Export PNG">📤</button>
     <button class="icon-btn" id="btnPdf" title="Export PDF">📄</button>
@@ -432,23 +413,6 @@ body.tv h1{ font-size:36px; }
 <div class="footer-banner">
   <div class="line1">🔥 EVERY CALL · EVERY FOLLOW UP · EVERY EFFORT COUNTS</div>
   <div class="line2">TOGETHER WE CAN. TOGETHER WE WILL. 💪 LET'S FINISH STRONG!</div>
-</div>
-
-<!-- ============ CONNECT SHEET MODAL ============ -->
-<div class="modal-backdrop" id="modalBackdrop">
-  <div class="modal">
-    <h3 class="font-display">🔗 Connect Google Sheet</h3>
-    <p>Paste a <b>Publish to web CSV link</b>, a regular share link, or an <b>Apps Script Web App</b> URL (most reliable — ends in <code>/exec</code>). Expected columns/keys (any order): <b>Manager, Target, Achieved</b>.</p>
-    <label>Sheet Link (CSV publish link or share link)</label>
-    <input type="text" id="sheetUrlInput" placeholder="https://docs.google.com/spreadsheets/d/...">
-    <label>Sheet / Tab Name (only needed for a regular share link)</label>
-    <input type="text" id="sheetNameInput" placeholder="Sheet1">
-    <div class="modal-actions">
-      <button class="btn btn-ghost" id="btnCancelModal">Cancel</button>
-      <button class="btn btn-primary" id="btnSaveModal">Connect & Sync</button>
-    </div>
-    <small class="warn" id="modalWarn"></small>
-  </div>
 </div>
 
 <script>
@@ -1097,41 +1061,6 @@ document.getElementById('btnPdf').addEventListener('click', ()=>{
     pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
     pdf.save(`admissions-dashboard-${Date.now()}.pdf`);
   });
-});
-
-const modalBackdrop = document.getElementById('modalBackdrop');
-document.getElementById('btnSheet').addEventListener('click', ()=>{
-  document.getElementById('sheetUrlInput').value = '';
-  document.getElementById('sheetNameInput').value = CONFIG.SHEET_NAME;
-  document.getElementById('modalWarn').textContent = '';
-  modalBackdrop.classList.add('open');
-});
-document.getElementById('btnCancelModal').addEventListener('click', ()=> modalBackdrop.classList.remove('open'));
-document.getElementById('btnSaveModal').addEventListener('click', async ()=>{
-  const url = document.getElementById('sheetUrlInput').value.trim();
-  const sheetName = document.getElementById('sheetNameInput').value.trim() || 'Sheet1';
-
-  if(/script\.google\.com\/macros/.test(url)){
-    CONFIG.SHEET_MODE = 'json';
-    CONFIG.JSON_URL = url;
-  } else if(/output=csv|\/pub\b/.test(url)){
-    CONFIG.SHEET_MODE = 'csv';
-    CONFIG.CSV_URL = url;
-  } else {
-    const idMatch = url.match(/\/d\/(?:e\/)?([a-zA-Z0-9-_]+)/);
-    if(!idMatch){
-      document.getElementById('modalWarn').textContent = 'Could not read that link. Paste a Publish-to-web CSV link or a full sheet share link.';
-      return;
-    }
-    CONFIG.SHEET_MODE = 'gviz';
-    CONFIG.SHEET_ID = idMatch[1];
-    CONFIG.SHEET_NAME = sheetName;
-  }
-
-  modalBackdrop.classList.remove('open');
-  clearInterval(refreshTimer);
-  await syncData();
-  refreshTimer = setInterval(syncData, CONFIG.REFRESH_MS);
 });
 
 /* =========================================================================
