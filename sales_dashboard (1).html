@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admissions Target Command Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+// Load third-party libraries with automatic fallback across CDNs, in case
+// one CDN (e.g. cdnjs) is blocked by a network/firewall/ad-blocker.
+function loadScriptWithFallback(urls){
+  return new Promise((resolve)=>{
+    let i = 0;
+    function tryNext(){
+      if(i >= urls.length){ resolve(false); return; }
+      const s = document.createElement('script');
+      s.src = urls[i];
+      s.onload = ()=>resolve(true);
+      s.onerror = ()=>{ i++; tryNext(); };
+      document.head.appendChild(s);
+    }
+    tryNext();
+  });
+}
+window.__libsReady = Promise.all([
+  loadScriptWithFallback([
+    'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js',
+    'https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js',
+    'https://unpkg.com/chart.js@4.4.4/dist/chart.umd.min.js'
+  ]),
+  loadScriptWithFallback([
+    'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
+    'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',
+    'https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js'
+  ]),
+  loadScriptWithFallback([
+    'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+    'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js',
+    'https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js'
+  ])
+]);
+</script>
+<style>
+:root{
+  --black:#07070b;
+  --panel:#0e0f16;
+  --glass:rgba(24,25,34,0.55);
+  --glass-brd:rgba(255,255,255,0.08);
+  --orange:#ff6a1a;
+  --orange2:#ffb020;
+  --gold:#f5c451;
+  --white:#f6f6f8;
+  --muted:#9a9aa8;
+  --green:#34d399;
+  --red:#ff5470;
+  --blue:#4f9dff;
+  --radius:20px;
+  --shadow: 0 20px 60px rgba(0,0,0,0.55);
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+html,body{
+  background: radial-gradient(ellipse 120% 80% at 20% -10%, rgba(255,106,26,0.14), transparent 60%),
+              radial-gradient(ellipse 100% 60% at 100% 0%, rgba(245,196,81,0.10), transparent 55%),
+              var(--black);
+  color:var(--white);
+  font-family:'Inter',sans-serif;
+  min-height:100vh;
+  overflow-x:hidden;
+}
+body{ padding: 28px clamp(14px,3vw,40px) 60px; }
+::selection{ background: var(--orange); color:#000; }
+
+/* ---------- scrollbar ---------- */
+::-webkit-scrollbar{ width:10px; height:10px; }
+::-webkit-scrollbar-thumb{ background:linear-gradient(var(--orange),var(--gold)); border-radius:10px; }
+::-webkit-scrollbar-track{ background:transparent; }
+
+.font-display{ font-family:'Space Grotesk',sans-serif; }
+
+/* ---------- header ---------- */
+.topbar{
+  display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:18px;
+  margin-bottom:26px;
+}
+.brand{ display:flex; align-items:center; gap:16px; }
+.dial{
+  position:relative; width:64px; height:64px; flex:none;
+}
+.dial svg{ width:100%; height:100%; transform:rotate(-90deg); filter: drop-shadow(0 0 10px rgba(255,106,26,.55)); }
+.dial-bg{ fill:none; stroke:rgba(255,255,255,0.08); stroke-width:6; }
+.dial-fg{ fill:none; stroke:url(#dialGrad); stroke-width:6; stroke-linecap:round; transition: stroke-dashoffset 1s cubic-bezier(.4,0,.2,1); }
+.dial-center{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:var(--gold);}
+
+.brand h1{ font-size:clamp(20px,2.4vw,28px); letter-spacing:0.5px; }
+.heading-anim{
+  background:linear-gradient(90deg, var(--white) 0%, var(--gold) 25%, var(--orange) 50%, var(--gold) 75%, var(--white) 100%);
+  background-size:250% auto;
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+  animation: shimmerText 6s linear infinite;
+  filter: drop-shadow(0 0 14px rgba(255,140,42,0.25));
+}
+@keyframes shimmerText{
+  0%{ background-position:0% center; }
+  100%{ background-position:250% center; }
+}
+.month-chip{
+  display:inline-flex; align-items:center; gap:6px; font-family:'Space Grotesk'; font-weight:700;
+  color:var(--gold); background:rgba(245,196,81,.12); border:1px solid rgba(245,196,81,.35);
+  padding:3px 10px; border-radius:999px; font-size:11.5px; letter-spacing:.4px;
+  animation: chipPulse 2.6s ease-in-out infinite;
+}
+@keyframes chipPulse{
+  0%,100%{ box-shadow:0 0 0 rgba(245,196,81,0); }
+  50%{ box-shadow:0 0 12px rgba(245,196,81,.45); }
+}
+.brand .sub{ color:var(--muted); font-size:12.5px; margin-top:4px; display:flex; gap:14px; flex-wrap:wrap; align-items:center;}
+.brand .sub b{ color:var(--white); font-weight:600; }
+
+.status-cluster{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.pill{
+  display:flex; align-items:center; gap:8px;
+  background:var(--glass); border:1px solid var(--glass-brd); backdrop-filter:blur(16px);
+  padding:9px 14px; border-radius:999px; font-size:12.5px; color:var(--muted);
+}
+.live-dot{ width:8px; height:8px; border-radius:50%; background:var(--green); box-shadow:0 0 10px var(--green); animation:pulse 1.6s infinite; }
+@keyframes pulse{ 0%,100%{opacity:1; transform:scale(1);} 50%{opacity:.5; transform:scale(1.4);} }
+
+.icon-btn{
+  width:38px; height:38px; border-radius:12px; background:var(--glass); border:1px solid var(--glass-brd);
+  color:var(--white); display:flex; align-items:center; justify-content:center; cursor:pointer;
+  transition:.2s; backdrop-filter:blur(16px); font-size:16px;
+}
+.icon-btn:hover{ border-color:var(--orange); box-shadow:0 0 16px rgba(255,106,26,.35); transform:translateY(-2px); }
+
+/* ---------- KPI grid ---------- */
+.kpi-grid{
+  display:grid; grid-template-columns:repeat(6,1fr); gap:14px; margin-bottom:26px;
+}
+@media(max-width:1100px){ .kpi-grid{ grid-template-columns:repeat(3,1fr);} }
+@media(max-width:620px){ .kpi-grid{ grid-template-columns:repeat(2,1fr);} }
+
+.kpi{
+  position:relative; background:var(--glass); border:1px solid var(--glass-brd); backdrop-filter:blur(18px);
+  border-radius:var(--radius); padding:18px 16px; overflow:hidden; box-shadow:var(--shadow);
+  transition:transform .35s cubic-bezier(.2,.8,.2,1), box-shadow .35s;
+}
+.kpi:hover{ transform:translateY(-6px); box-shadow:0 26px 60px rgba(255,106,26,.18); }
+.kpi::before{
+  content:''; position:absolute; inset:0; opacity:0; background:radial-gradient(circle at 30% 0%, rgba(255,106,26,.35), transparent 60%);
+  transition:opacity .4s;
+}
+.kpi.flash::before{ opacity:1; }
+.kpi .k-icon{ font-size:18px; opacity:.9; }
+.kpi .k-label{ font-size:11px; letter-spacing:.6px; color:var(--muted); text-transform:uppercase; margin-top:10px; font-weight:600;}
+.kpi .k-value{ font-family:'Space Grotesk'; font-size:clamp(22px,2.6vw,30px); font-weight:700; margin-top:4px; }
+.kpi .k-sub{ font-size:11px; color:var(--muted); margin-top:6px; }
+.kpi .k-bar{ height:5px; border-radius:6px; background:rgba(255,255,255,0.08); margin-top:12px; overflow:hidden;}
+.kpi .k-bar i{ display:block; height:100%; border-radius:6px; background:linear-gradient(90deg,var(--orange),var(--gold)); width:0%; transition:width 1s cubic-bezier(.4,0,.2,1); box-shadow:0 0 10px rgba(255,178,32,.6); }
+
+.kpi.target .k-value{ color:var(--white); }
+.kpi.achieved .k-value{ color:var(--green); }
+.kpi.remaining .k-value{ color:var(--blue); }
+.kpi.pct .k-value{ background:linear-gradient(90deg,var(--orange),var(--gold)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.kpi.passed .k-value{ color:var(--gold); }
+.kpi.left .k-value{ color:#c58bff; }
+
+/* ---------- section headers ---------- */
+.section-head{ display:flex; align-items:center; justify-content:space-between; gap:14px; margin:8px 0 14px; flex-wrap:wrap;}
+.section-head h2{ font-family:'Space Grotesk'; font-size:18px; letter-spacing:.3px; display:flex; align-items:center; gap:8px;}
+.section-head h2 span.tag{ font-size:10.5px; padding:3px 9px; border-radius:999px; background:rgba(255,106,26,.15); color:var(--orange2); border:1px solid rgba(255,106,26,.3); font-family:'Inter'; font-weight:600; letter-spacing:.4px;}
+.search-wrap{ position:relative; }
+.search-wrap input{
+  background:var(--glass); border:1px solid var(--glass-brd); color:var(--white); border-radius:12px;
+  padding:9px 14px 9px 34px; font-size:13px; width:210px; outline:none; backdrop-filter:blur(14px);
+}
+.search-wrap input:focus{ border-color:var(--orange); }
+.search-wrap::before{ content:'🔍'; position:absolute; left:11px; top:50%; transform:translateY(-50%); font-size:12px; opacity:.6;}
+
+/* ---------- leaderboard ---------- */
+.leaderboard{
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(280px,1fr)); gap:16px; margin-bottom:32px;
+}
+.mcard{
+  position:relative; background:var(--glass); border:1px solid var(--glass-brd); backdrop-filter:blur(18px);
+  border-radius:var(--radius); padding:18px; box-shadow:var(--shadow);
+  transition: transform .5s cubic-bezier(.2,.8,.2,1), box-shadow .4s, border-color .4s;
+}
+.mcard.rank-1{ border-color:rgba(245,196,81,.55); box-shadow:0 0 0 1px rgba(245,196,81,.25), 0 20px 50px rgba(245,196,81,.15);}
+.mcard.glow{ animation: cardGlow 1.1s ease; }
+@keyframes cardGlow{
+  0%{ box-shadow:0 0 0 0 rgba(255,106,26,0); }
+  30%{ box-shadow:0 0 0 6px rgba(255,106,26,.25), var(--shadow); }
+  100%{ box-shadow:var(--shadow); }
+}
+.mcard-top{ display:flex; align-items:center; gap:12px; }
+.rank-badge{
+  width:38px; height:38px; border-radius:12px; display:flex; align-items:center; justify-content:center;
+  font-family:'Space Grotesk'; font-weight:700; font-size:15px; flex:none;
+  background:linear-gradient(135deg,#3a3a44,#1c1c22); color:var(--muted); border:1px solid var(--glass-brd);
+}
+.rank-badge.r1{ background:linear-gradient(135deg,#ffe08a,#f5a623); color:#3a2500; box-shadow:0 0 14px rgba(245,166,35,.55); }
+.rank-badge.r2{ background:linear-gradient(135deg,#e6e6ef,#a9adba); color:#22222a; }
+.rank-badge.r3{ background:linear-gradient(135deg,#e0a570,#a8623a); color:#2a1500; }
+.avatar{
+  width:42px; height:42px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center;
+  background:linear-gradient(135deg,var(--orange),var(--gold)); font-family:'Space Grotesk'; font-weight:700; font-size:15px; color:#160b00;
+}
+.mcard-name{ font-family:'Space Grotesk'; font-weight:600; font-size:15.5px; }
+.mcard-name .badges{ display:flex; gap:5px; margin-top:4px; flex-wrap:wrap; }
+.badge-chip{ font-size:9.5px; padding:2px 7px; border-radius:999px; font-weight:700; letter-spacing:.3px; }
+.badge-top{ background:rgba(245,196,81,.18); color:var(--gold); border:1px solid rgba(245,196,81,.4); }
+.badge-fast{ background:rgba(255,84,112,.15); color:#ff8fa3; border:1px solid rgba(255,84,112,.35); }
+.badge-close{ background:rgba(79,157,255,.15); color:#8bbcff; border:1px solid rgba(79,157,255,.35); }
+
+.mstats{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:16px; }
+.mstat{ text-align:center; background:rgba(255,255,255,.03); border-radius:12px; padding:8px 4px; }
+.mstat .v{ font-family:'Space Grotesk'; font-weight:700; font-size:16px; }
+.mstat .l{ font-size:9.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; margin-top:2px;}
+.mstat.achv .v{ color:var(--green); }
+.mstat.rem .v{ color:var(--blue); }
+
+.progress-wrap{ margin-top:14px; }
+.progress-label{ display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-bottom:6px;}
+.progress-label b{ color:var(--orange2); font-family:'Space Grotesk'; }
+.progress-track{ height:9px; border-radius:8px; background:rgba(255,255,255,.06); overflow:hidden; }
+.progress-fill{ height:100%; border-radius:8px; background:linear-gradient(90deg,var(--orange),var(--gold)); width:0%; transition:width 1.1s cubic-bezier(.4,0,.2,1); position:relative; }
+.progress-fill.pulse{ box-shadow:0 0 16px rgba(255,178,32,.8); }
+.progress-fill::after{ content:''; position:absolute; inset:0; background:linear-gradient(90deg,transparent,rgba(255,255,255,.4),transparent); width:40px; animation:shine 2.4s infinite; }
+@keyframes shine{ 0%{ transform:translateX(-40px);} 100%{ transform:translateX(220px);} }
+
+/* ---------- charts ---------- */
+.charts-grid{ display:grid; grid-template-columns:1fr 1fr 1.3fr; gap:16px; margin-bottom:32px; }
+@media(max-width:1000px){ .charts-grid{ grid-template-columns:1fr; } }
+.chart-card{
+  background:var(--glass); border:1px solid var(--glass-brd); backdrop-filter:blur(18px);
+  border-radius:var(--radius); padding:18px; box-shadow:var(--shadow); min-height:260px; display:flex; flex-direction:column;
+}
+.chart-card h3{ font-family:'Space Grotesk'; font-size:14px; font-weight:600; margin-bottom:10px; color:var(--white); display:flex; gap:8px; align-items:center;}
+.chart-card canvas{ flex:1; max-height:220px; }
+
+/* ---------- footer / sync bar ---------- */
+.syncbar{
+  display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+  background:var(--glass); border:1px solid var(--glass-brd); border-radius:16px; padding:12px 18px; backdrop-filter:blur(16px);
+  font-size:12px; color:var(--muted); margin-bottom:20px;
+}
+.countdown-track{ width:140px; height:4px; border-radius:4px; background:rgba(255,255,255,.08); overflow:hidden;}
+.countdown-fill{ height:100%; background:linear-gradient(90deg,var(--orange),var(--gold)); width:100%; transform-origin:left; }
+
+.footer-banner{
+  text-align:center; padding:26px 16px; border-radius:var(--radius); margin-top:6px;
+  background:linear-gradient(135deg, rgba(255,106,26,.14), rgba(245,196,81,.10));
+  border:1px solid rgba(255,178,32,.3);
+}
+.footer-banner .line1{ font-family:'Space Grotesk'; font-weight:700; font-size:15px; letter-spacing:.5px; color:var(--white); }
+.footer-banner .line2{ font-family:'Space Grotesk'; font-weight:700; font-size:26px; background:linear-gradient(90deg,var(--orange),var(--gold)); -webkit-background-clip:text; background-clip:text; color:transparent; margin-top:4px;}
+
+/* ---------- modal ---------- */
+.modal-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.6); backdrop-filter:blur(4px); display:none; align-items:center; justify-content:center; z-index:50; }
+.modal-backdrop.open{ display:flex; }
+.modal{
+  width:min(460px,92vw); background:#0d0e15; border:1px solid var(--glass-brd); border-radius:18px; padding:22px;
+  box-shadow:var(--shadow);
+}
+.modal h3{ font-family:'Space Grotesk'; margin-bottom:6px; }
+.modal p{ font-size:12.5px; color:var(--muted); margin-bottom:14px; line-height:1.5; }
+.modal label{ font-size:12px; color:var(--muted); display:block; margin:10px 0 5px; }
+.modal input{ width:100%; background:#15161f; border:1px solid var(--glass-brd); color:var(--white); border-radius:10px; padding:10px 12px; font-size:13px; outline:none; }
+.modal input:focus{ border-color:var(--orange); }
+.modal-actions{ display:flex; gap:10px; margin-top:18px; }
+.btn{ flex:1; padding:10px 14px; border-radius:10px; border:none; cursor:pointer; font-weight:600; font-size:13px; }
+.btn-primary{ background:linear-gradient(90deg,var(--orange),var(--gold)); color:#180c00; }
+.btn-ghost{ background:transparent; border:1px solid var(--glass-brd); color:var(--white); }
+.modal small.warn{ display:block; margin-top:10px; color:#ff8fa3; font-size:11px; }
+
+/* ---------- TV mode ---------- */
+body.tv .icon-btn, body.tv .search-wrap, body.tv .section-head .tag{ display:none !important; }
+body.tv{ padding:34px 46px; }
+body.tv .kpi .k-value{ font-size:clamp(28px,3.4vw,42px); }
+body.tv .mcard-name{ font-size:19px; }
+body.tv h1{ font-size:36px; }
+
+/* empty state for search */
+.empty-state{ grid-column:1/-1; text-align:center; padding:40px; color:var(--muted); font-size:13px; }
+
+/* ---------- TL groups ---------- */
+.tl-group{
+  background:rgba(255,255,255,0.02); border:1px solid var(--glass-brd); border-radius:var(--radius);
+  padding:16px; margin-bottom:16px; backdrop-filter:blur(10px);
+}
+.tl-group-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap;}
+.tl-group-title{ display:flex; align-items:center; gap:12px; }
+.tl-group-avatar{
+  width:38px; height:38px; border-radius:12px; display:flex; align-items:center; justify-content:center;
+  background:linear-gradient(135deg,#4f9dff,#c58bff); font-family:'Space Grotesk'; font-weight:700; font-size:13px; color:#0b0b14; flex:none;
+}
+.tl-group-name{ font-family:'Space Grotesk'; font-weight:600; font-size:14.5px; }
+.tl-group-sub{ font-size:11.5px; color:var(--muted); margin-top:2px; }
+.tl-group-pct{ font-family:'Space Grotesk'; font-weight:700; font-size:22px; color:var(--blue); text-align:right; }
+.tl-group-total{ display:flex; flex-direction:column; align-items:flex-end; }
+.tl-group-caption{ font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; margin-top:2px; }
+.tl-cards{ display:grid; grid-template-columns:repeat(auto-fill, minmax(240px,1fr)); gap:12px; }
+.tl-card{ padding:14px; }
+.tl-card .rank-badge{ width:30px; height:30px; font-size:12px; }
+.tl-card .avatar{ width:34px; height:34px; font-size:12px; }
+.tl-card .mcard-name{ font-size:13.5px; }
+.mstats.achieved-only{ grid-template-columns:1fr; margin-top:14px; }
+.mstat.wide{ padding:14px 4px; }
+.mstat.wide .v{ font-size:24px; }
+
+@media(max-width:700px){
+  .charts-grid{ grid-template-columns:1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============ TOP BAR ============ -->
+<div class="topbar">
+  <div class="brand">
+    <div class="dial">
+      <svg viewBox="0 0 64 64">
+        <defs>
+          <linearGradient id="dialGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#ff6a1a"/>
+            <stop offset="100%" stop-color="#f5c451"/>
+          </linearGradient>
+        </defs>
+        <circle class="dial-bg" cx="32" cy="32" r="27"></circle>
+        <circle id="dialFg" class="dial-fg" cx="32" cy="32" r="27" stroke-dasharray="169.6" stroke-dashoffset="169.6"></circle>
+      </svg>
+      <div class="dial-center" id="dialPct">0%</div>
+    </div>
+    <div>
+      <h1 class="font-display heading-anim">🎯 SALES TARGET DASHBOARD</h1>
+      <div class="sub">
+        <span class="month-chip" id="monthLabel">THIS MONTH</span>
+        <span>Today: <b id="todayLabel">-</b></span>
+        <span>Period: <b id="periodLabel">-</b></span>
+        <span>Days Passed: <b id="daysPassedLabel">-</b></span>
+        <span>Days Left: <b id="daysLeftLabel">-</b></span>
+      </div>
+    </div>
+  </div>
+  <div class="status-cluster">
+    <div class="pill"><span class="live-dot"></span> <span id="liveLabel">LIVE · DEMO DATA</span></div>
+    <button class="icon-btn" id="btnSheet" title="Connect Google Sheet">🔗</button>
+    <button class="icon-btn" id="btnTv" title="TV Display Mode">🖥️</button>
+    <button class="icon-btn" id="btnPng" title="Export PNG">📤</button>
+    <button class="icon-btn" id="btnPdf" title="Export PDF">📄</button>
+  </div>
+</div>
+
+<!-- ============ SYNC BAR ============ -->
+<div class="syncbar">
+  <div>Last updated: <b id="lastUpdated" style="color:var(--white)">–</b> &nbsp;·&nbsp; next sync in <span id="nextSyncCount">5</span>s</div>
+  <div class="countdown-track"><div class="countdown-fill" id="countdownFill"></div></div>
+</div>
+
+<!-- ============ KPI GRID ============ -->
+<div class="kpi-grid" id="dashboardCapture">
+  <div class="kpi target">
+    <div class="k-icon">🎯</div>
+    <div class="k-label">Total Target</div>
+    <div class="k-value" id="kTotalTarget">0</div>
+    <div class="k-sub">Across all managers</div>
+  </div>
+  <div class="kpi achieved">
+    <div class="k-icon">✅</div>
+    <div class="k-label">Total Achieved</div>
+    <div class="k-value" id="kTotalAchieved">0</div>
+    <div class="k-bar"><i id="kAchievedBar"></i></div>
+  </div>
+  <div class="kpi remaining">
+    <div class="k-icon">📉</div>
+    <div class="k-label">Remaining Target</div>
+    <div class="k-value" id="kRemaining">0</div>
+    <div class="k-sub" id="kRemainingSub">-</div>
+  </div>
+  <div class="kpi pct">
+    <div class="k-icon">📈</div>
+    <div class="k-label">Overall Achievement</div>
+    <div class="k-value" id="kOverallPct">0%</div>
+    <div class="k-sub" id="kDailyReq">-</div>
+  </div>
+  <div class="kpi passed">
+    <div class="k-icon">📅</div>
+    <div class="k-label">Days Passed</div>
+    <div class="k-value" id="kDaysPassed">0</div>
+    <div class="k-sub" id="kDaysPassedSub">-</div>
+  </div>
+  <div class="kpi left">
+    <div class="k-icon">⏳</div>
+    <div class="k-label">Days Left</div>
+    <div class="k-value" id="kDaysLeft">0</div>
+    <div class="k-sub" id="kDaysLeftSub">-</div>
+  </div>
+</div>
+
+<!-- ============ LEADERBOARD ============ -->
+<div class="section-head">
+  <h2>🏆 Live Leaderboard <span class="tag">Auto-ranked</span></h2>
+  <div class="search-wrap"><input type="text" id="searchInput" placeholder="Search manager..."></div>
+</div>
+<div class="leaderboard" id="leaderboard"></div>
+
+<!-- ============ TEAM LEADS (grouped by Manager) ============ -->
+<div class="section-head">
+  <h2>🧑‍💼 Team Leads by Manager <span class="tag">Auto-grouped</span></h2>
+</div>
+<div id="tlGroups"></div>
+
+<!-- ============ CHARTS ============ -->
+<div class="section-head"><h2>📊 Performance Analytics</h2></div>
+<div class="charts-grid">
+  <div class="chart-card">
+    <h3>🍩 Target vs Achieved vs Remaining</h3>
+    <canvas id="doughnutChart"></canvas>
+  </div>
+  <div class="chart-card">
+    <h3>📈 Managers vs Achieved</h3>
+    <canvas id="barChart"></canvas>
+  </div>
+  <div class="chart-card">
+    <h3>📉 Daily Progress Trend</h3>
+    <canvas id="lineChart"></canvas>
+  </div>
+</div>
+
+<!-- ============ FOOTER BANNER ============ -->
+<div class="footer-banner">
+  <div class="line1">🔥 EVERY CALL · EVERY FOLLOW UP · EVERY EFFORT COUNTS</div>
+  <div class="line2">TOGETHER WE CAN. TOGETHER WE WILL. 💪 LET'S FINISH STRONG!</div>
+</div>
+
+<!-- ============ CONNECT SHEET MODAL ============ -->
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal">
+    <h3 class="font-display">🔗 Connect Google Sheet</h3>
+    <p>Paste a <b>Publish to web CSV link</b>, a regular share link, or an <b>Apps Script Web App</b> URL (most reliable — ends in <code>/exec</code>). Expected columns/keys (any order): <b>Manager, Target, Achieved</b>.</p>
+    <label>Sheet Link (CSV publish link or share link)</label>
+    <input type="text" id="sheetUrlInput" placeholder="https://docs.google.com/spreadsheets/d/...">
+    <label>Sheet / Tab Name (only needed for a regular share link)</label>
+    <input type="text" id="sheetNameInput" placeholder="Sheet1">
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="btnCancelModal">Cancel</button>
+      <button class="btn btn-primary" id="btnSaveModal">Connect & Sync</button>
+    </div>
+    <small class="warn" id="modalWarn"></small>
+  </div>
+</div>
+
+<script>
+/* =========================================================================
+   CONFIG
+   ========================================================================= */
+const CONFIG = {
+  // Published-to-web CSV link (File > Share > Publish to web > CSV).
+  // This works every month automatically — just keep the Achieved/Target
+  // columns updated in the sheet, no need to touch this file.
+  CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTAY6nv8gMegLkl1BRvb2asQXKWieXbsFGz9JI8KPMM70CNzNDBCpgaWmqOhjmsMldaHWlU6ujHJ8Py/pub?gid=0&single=true&output=csv',
+  JSON_URL: 'https://script.google.com/macros/s/AKfycbxDMqPL0Ry__JqnvWqYal8alSObwD9HcUkXfnjZMDCULozJzsafvTYs60hMNlc486Y/exec',
+  SHEET_MODE: 'json',     // 'csv' (published CSV link), 'gviz' (regular share link), or 'json' (Apps Script)
+  SHEET_ID: '',           // only used when SHEET_MODE === 'gviz'
+  SHEET_NAME: 'Sheet1',
+  REFRESH_MS: 5000
+};
+
+let managers = [];       // live data: {name, target, achieved, prevAchieved, history:[]}
+let tls = [];             // Team Leads: {name, target, achieved, prevAchieved, reportsTo}
+let usingLiveSheet = false;
+let searchTerm = '';
+let refreshTimer = null;
+let countdownStart = 0;
+
+/* =========================================================================
+   DEMO DATA (used until a Google Sheet is connected)
+   ========================================================================= */
+function seedDemoData(){
+  managers = [
+    { name:'Aslam',    target:250, achieved:50 },
+    { name:'Deepesh',  target:165, achieved:29 },
+    { name:'Manas',    target:100, achieved:19 },
+    { name:'Abhishek', target:30,  achieved:3  },
+  ].map(m => ({...m, prevAchieved:m.achieved, history:[Math.max(0,m.achieved-6)]}));
+
+  tls = [
+    { name:'Rahul', target:80, achieved:12, reportsTo:'Aslam' },
+    { name:'Priya', target:60, achieved:9,  reportsTo:'Aslam' },
+    { name:'Karan', target:70, achieved:8,  reportsTo:'Deepesh' },
+    { name:'Sneha', target:40, achieved:5,  reportsTo:'Manas' },
+  ].map(t => ({...t, prevAchieved:t.achieved}));
+}
+seedDemoData();
+
+// simulate gentle live movement in demo mode so the dashboard feels alive
+function simulateDemoTick(){
+  managers.forEach(m=>{
+    m.prevAchieved = m.achieved;
+    if(Math.random() < 0.7){
+      const bump = Math.floor(Math.random()*3); // 0-2
+      m.achieved = Math.min(m.target, m.achieved + bump);
+    }
+  });
+  tls.forEach(t=>{
+    t.prevAchieved = t.achieved;
+    if(Math.random() < 0.7){
+      const bump = Math.floor(Math.random()*2); // 0-1
+      t.achieved = Math.min(t.target, t.achieved + bump);
+    }
+  });
+}
+
+/* =========================================================================
+   DATE / KPI MATH
+   ========================================================================= */
+function dateStats(){
+  // Auto-computed from today's real date — always reflects the CURRENT month,
+  // so this dashboard works unchanged every month, no config edits needed.
+  const today = new Date();
+  const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const start = new Date(today.getFullYear(), today.getMonth(), 1);
+  const end = new Date(today.getFullYear(), today.getMonth()+1, 0);
+  const monthLabel = today.toLocaleDateString('en-GB', {month:'long', year:'numeric'}).toUpperCase();
+
+  const totalDays = Math.round((end-start)/86400000)+1;
+  let daysPassed = Math.round((todayMid-start)/86400000)+1;
+  daysPassed = Math.max(1, Math.min(totalDays, daysPassed));
+  const daysLeft = Math.max(0, totalDays - daysPassed);
+
+  const fmt = d => d.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'});
+  return { totalDays, daysPassed, daysLeft, todayStr: fmt(todayMid), periodStr: `${fmt(start)} – ${fmt(end)}`, monthLabel, start, end };
+}
+
+function computeAggregate(){
+  const totalTarget = managers.reduce((s,m)=>s+m.target,0);
+  const totalAchieved = managers.reduce((s,m)=>s+m.achieved,0);
+  const remaining = Math.max(0, totalTarget-totalAchieved);
+  const pct = totalTarget ? (totalAchieved/totalTarget*100) : 0;
+  return { totalTarget, totalAchieved, remaining, pct };
+}
+
+/* =========================================================================
+   COUNT-UP ANIMATION
+   ========================================================================= */
+const countState = new WeakMap();
+function countUp(el, to, opts={}){
+  const decimals = opts.decimals || 0;
+  const suffix = opts.suffix || '';
+  const from = countState.get(el) ?? 0;
+  countState.set(el, to);
+  if(from === to){ el.textContent = to.toFixed(decimals)+suffix; return; }
+  const duration = 900;
+  const t0 = performance.now();
+  function step(now){
+    const p = Math.min(1, (now-t0)/duration);
+    const eased = 1 - Math.pow(1-p, 3);
+    const val = from + (to-from)*eased;
+    el.textContent = val.toFixed(decimals)+suffix;
+    if(p < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+function flashCard(el){
+  el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+  setTimeout(()=>el.classList.remove('flash'), 900);
+}
+
+/* =========================================================================
+   RENDER: HEADER DIAL + KPIs
+   ========================================================================= */
+function renderHeaderAndKpis(){
+  const ds = dateStats();
+  document.getElementById('monthLabel').textContent = ds.monthLabel;
+  document.getElementById('todayLabel').textContent = ds.todayStr;
+  document.getElementById('periodLabel').textContent = ds.periodStr;
+  document.getElementById('daysPassedLabel').textContent = ds.daysPassed;
+  document.getElementById('daysLeftLabel').textContent = ds.daysLeft;
+
+  const agg = computeAggregate();
+  const dailyRequired = ds.daysLeft > 0 ? (agg.remaining/ds.daysLeft) : 0;
+
+  countUp(document.getElementById('kTotalTarget'), agg.totalTarget);
+  countUp(document.getElementById('kTotalAchieved'), agg.totalAchieved);
+  countUp(document.getElementById('kRemaining'), agg.remaining);
+  countUp(document.getElementById('kOverallPct'), agg.pct, {decimals:1, suffix:'%'});
+  countUp(document.getElementById('kDaysPassed'), ds.daysPassed);
+  countUp(document.getElementById('kDaysLeft'), ds.daysLeft);
+
+  document.getElementById('kAchievedBar').style.width = Math.min(100,agg.pct)+'%';
+  document.getElementById('kRemainingSub').textContent = `${(100-agg.pct).toFixed(1)}% left to close`;
+  document.getElementById('kDailyReq').textContent = `Needs ~${dailyRequired.toFixed(1)}/day to hit target`;
+  document.getElementById('kDaysPassedSub').textContent = `of ${ds.totalDays} days (from ${ds.start.toLocaleDateString('en-GB',{day:'2-digit',month:'short'})})`;
+  document.getElementById('kDaysLeftSub').textContent = `till ${ds.end.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}`;
+
+  // dial
+  const circumference = 2*Math.PI*27;
+  const offset = circumference - (Math.min(100,agg.pct)/100)*circumference;
+  document.getElementById('dialFg').setAttribute('stroke-dashoffset', offset.toFixed(1));
+  document.getElementById('dialFg').setAttribute('stroke-dasharray', circumference.toFixed(1));
+  document.getElementById('dialPct').textContent = Math.round(agg.pct)+'%';
+
+  return agg;
+}
+
+/* =========================================================================
+   RENDER: LEADERBOARD (FLIP animation on reorder)
+   ========================================================================= */
+function initials(name){
+  return name.split(' ').map(s=>s[0]).join('').slice(0,2).toUpperCase();
+}
+
+function computeBadges(){
+  if(managers.length===0) return {};
+  const sorted = [...managers].sort((a,b)=>b.achieved-a.achieved);
+  const topPerformer = sorted[0]?.name;
+  const fastest = [...managers].sort((a,b)=>(b.achieved-b.prevAchieved)-(a.achieved-a.prevAchieved))[0];
+  const fastestGrowing = (fastest && (fastest.achieved-fastest.prevAchieved) > 0) ? fastest.name : null;
+  const closest = [...managers].sort((a,b)=>(b.achieved/b.target)-(a.achieved/a.target))[0];
+  const closestName = closest && closest.name !== topPerformer ? closest.name : (closest ? closest.name : null);
+  return { topPerformer, fastestGrowing, closest: closest ? closest.name : null };
+}
+
+function buildCard(m, rank, badges, opts={}){
+  const showTarget = opts.showTarget !== false;
+  const remaining = Math.max(0, m.target-m.achieved);
+  const pct = m.target ? (m.achieved/m.target*100) : 0;
+  const div = document.createElement('div');
+  div.className = 'mcard' + (rank===1?' rank-1':'');
+  div.dataset.name = m.name;
+
+  let rankClass = '';
+  if(rank===1) rankClass='r1'; else if(rank===2) rankClass='r2'; else if(rank===3) rankClass='r3';
+
+  let chips = '';
+  if(badges.topPerformer===m.name) chips += `<span class="badge-chip badge-top">🏆 TOP PERFORMER</span>`;
+  if(badges.fastestGrowing===m.name) chips += `<span class="badge-chip badge-fast">🔥 FASTEST GROWING</span>`;
+  if(badges.closest===m.name && badges.closest!==badges.topPerformer) chips += `<span class="badge-chip badge-close">🎯 CLOSEST TO TARGET</span>`;
+
+  const statsBlock = showTarget ? `
+    <div class="mstats">
+      <div class="mstat"><div class="v">${m.target}</div><div class="l">Target</div></div>
+      <div class="mstat achv"><div class="v" data-role="achv">${m.achieved}</div><div class="l">Achieved</div></div>
+      <div class="mstat rem"><div class="v" data-role="rem">${remaining}</div><div class="l">Remaining</div></div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-label"><span>Target Progress</span><b data-role="pct">${pct.toFixed(1)}%</b></div>
+      <div class="progress-track"><div class="progress-fill" data-role="bar" style="width:0%"></div></div>
+    </div>
+  ` : `
+    <div class="mstats achieved-only">
+      <div class="mstat achv wide"><div class="v" data-role="achv">${m.achieved}</div><div class="l">Achieved</div></div>
+    </div>
+  `;
+
+  div.innerHTML = `
+    <div class="mcard-top">
+      <div class="rank-badge ${rankClass}">${rank<=3? ['🥇','🥈','🥉'][rank-1] : '#'+rank}</div>
+      <div class="avatar">${initials(m.name)}</div>
+      <div>
+        <div class="mcard-name">${m.name}</div>
+        <div class="badges">${chips}</div>
+      </div>
+    </div>
+    ${statsBlock}
+  `;
+  return div;
+}
+
+let firstRenderLB = true;
+function renderLeaderboard(){
+  const board = document.getElementById('leaderboard');
+  const filtered = managers.filter(m => m.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  const sorted = [...filtered].sort((a,b)=>b.achieved-a.achieved);
+  const badges = computeBadges();
+
+  // FIRST: capture existing positions
+  const firstRects = {};
+  if(!firstRenderLB){
+    [...board.children].forEach(child=>{
+      if(child.dataset && child.dataset.name) firstRects[child.dataset.name] = child.getBoundingClientRect();
+    });
+  }
+
+  if(sorted.length===0){
+    board.innerHTML = `<div class="empty-state">No manager matches "${searchTerm}"</div>`;
+    return;
+  }
+
+  board.innerHTML='';
+  sorted.forEach((m,i)=>{
+    const card = buildCard(m, i+1, badges);
+    board.appendChild(card);
+  });
+
+  // LAST + INVERT + PLAY (FLIP)
+  [...board.children].forEach(child=>{
+    const name = child.dataset.name;
+    if(!name) return;
+    const last = child.getBoundingClientRect();
+    const first = firstRects[name];
+    if(first){
+      const dx = first.left-last.left, dy = first.top-last.top;
+      if(dx || dy){
+        child.style.transform = `translate(${dx}px,${dy}px)`;
+        child.style.transition = 'transform 0s';
+        requestAnimationFrame(()=>{
+          child.style.transition = 'transform .6s cubic-bezier(.2,.8,.2,1)';
+          child.style.transform = 'translate(0,0)';
+        });
+      }
+    } else if(!firstRenderLB){
+      child.style.opacity='0'; child.style.transform='scale(.9)';
+      requestAnimationFrame(()=>{
+        child.style.transition='opacity .5s, transform .5s';
+        child.style.opacity='1'; child.style.transform='scale(1)';
+      });
+    }
+
+    // animate numbers + bar for each card
+    const m = managers.find(x=>x.name===name);
+    const pct = m.target ? (m.achieved/m.target*100) : 0;
+    const remaining = Math.max(0, m.target-m.achieved);
+    countUp(child.querySelector('[data-role="achv"]'), m.achieved);
+    countUp(child.querySelector('[data-role="rem"]'), remaining);
+    const pctEl = child.querySelector('[data-role="pct"]');
+    countUp(pctEl, pct, {decimals:1, suffix:'%'});
+    const bar = child.querySelector('[data-role="bar"]');
+    requestAnimationFrame(()=> bar.style.width = Math.min(100,pct)+'%');
+    if(m.achieved !== m.prevAchieved){
+      flashCard(child);
+      bar.classList.add('pulse');
+      setTimeout(()=>bar.classList.remove('pulse'), 1000);
+    }
+  });
+
+  firstRenderLB = false;
+}
+
+/* =========================================================================
+   RENDER: TEAM LEADS — grouped under their reporting Manager
+   ========================================================================= */
+function renderTLGroups(){
+  const wrap = document.getElementById('tlGroups');
+  if(!wrap) return;
+
+  if(tls.length===0){
+    wrap.innerHTML = `<div class="empty-state">No Team Leads added yet — add a "Reports To" column in your sheet to enable this section.</div>`;
+    return;
+  }
+
+  // order manager groups to match the leaderboard rank order; unmatched reportsTo -> "Unassigned"
+  const managerOrder = [...managers].sort((a,b)=>b.achieved-a.achieved).map(m=>m.name);
+  const grouped = {};
+  tls.forEach(t=>{
+    const key = managerOrder.includes(t.reportsTo) ? t.reportsTo : (t.reportsTo || 'Unassigned');
+    (grouped[key] = grouped[key] || []).push(t);
+  });
+  const groupNames = Object.keys(grouped).sort((a,b)=>{
+    const ai = managerOrder.indexOf(a), bi = managerOrder.indexOf(b);
+    if(ai<0 && bi<0) return a.localeCompare(b);
+    if(ai<0) return 1;
+    if(bi<0) return -1;
+    return ai-bi;
+  });
+
+  const filtered = searchTerm ? groupNames.filter(g =>
+    g.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    grouped[g].some(t=>t.name.toLowerCase().includes(searchTerm.toLowerCase()))
+  ) : groupNames;
+
+  if(filtered.length===0){
+    wrap.innerHTML = `<div class="empty-state">No Team Leads match "${searchTerm}"</div>`;
+    return;
+  }
+
+  wrap.innerHTML = '';
+  filtered.forEach(groupName=>{
+    const groupTls = [...grouped[groupName]].sort((a,b)=>b.achieved-a.achieved);
+    const groupAchieved = groupTls.reduce((s,t)=>s+t.achieved,0);
+
+    const section = document.createElement('div');
+    section.className = 'tl-group';
+    section.innerHTML = `
+      <div class="tl-group-head">
+        <div class="tl-group-title">
+          <span class="tl-group-avatar">${initials(groupName)}</span>
+          <div>
+            <div class="tl-group-name">Reporting to ${groupName}</div>
+            <div class="tl-group-sub">${groupTls.length} Team Lead${groupTls.length>1?'s':''}</div>
+          </div>
+        </div>
+        <div class="tl-group-total">
+          <div class="tl-group-pct">${groupAchieved}</div>
+          <div class="tl-group-caption">Total Achieved</div>
+        </div>
+      </div>
+      <div class="tl-cards"></div>
+    `;
+    const cardHolder = section.querySelector('.tl-cards');
+    groupTls.forEach((t,i)=>{
+      const card = buildCard(t, i+1, {}, {showTarget:false});
+      card.classList.add('tl-card');
+      card.style.opacity='0'; card.style.transform='translateY(10px)';
+      cardHolder.appendChild(card);
+      requestAnimationFrame(()=>{
+        card.style.transition='opacity .5s, transform .5s';
+        card.style.opacity='1'; card.style.transform='translateY(0)';
+      });
+
+      countUp(card.querySelector('[data-role="achv"]'), t.achieved);
+      if(t.achieved !== t.prevAchieved){
+        flashCard(card);
+      }
+    });
+    wrap.appendChild(section);
+  });
+}
+
+/* =========================================================================
+   CHARTS
+   ========================================================================= */
+let doughnutChart, barChart, lineChart, chartsReady = false;
+function initCharts(){
+  if(typeof Chart === 'undefined'){
+    console.warn('Chart.js failed to load (blocked CDN?) — dashboard will run without charts.');
+    document.querySelectorAll('.chart-card canvas').forEach(c=>{
+      c.insertAdjacentHTML('afterend', '<div style="color:#9a9aa8;font-size:12px;padding:8px 0;">Charts unavailable — Chart.js could not be loaded from the CDN.</div>');
+    });
+    return;
+  }
+  const ctxD = document.getElementById('doughnutChart');
+  const ctxB = document.getElementById('barChart');
+  const ctxL = document.getElementById('lineChart');
+
+  Chart.defaults.color = '#9a9aa8';
+  Chart.defaults.font.family = "Inter";
+
+  doughnutChart = new Chart(ctxD, {
+    type:'doughnut',
+    data:{ labels:['Achieved','Remaining'], datasets:[{ data:[0,0],
+      backgroundColor:['#ff8c2a','#22232d'], borderColor:'#0e0f16', borderWidth:3, hoverOffset:8 }] },
+    options:{ plugins:{legend:{position:'bottom', labels:{boxWidth:10, padding:14}}}, cutout:'68%', animation:{duration:900, easing:'easeOutCubic'} }
+  });
+
+  barChart = new Chart(ctxB, {
+    type:'bar',
+    data:{ labels:[], datasets:[{ label:'Achieved', data:[], backgroundColor:'#ff6a1a', borderRadius:8, maxBarThickness:34 },
+                                 { label:'Target', data:[], backgroundColor:'rgba(255,255,255,0.08)', borderRadius:8, maxBarThickness:34 }] },
+    options:{ plugins:{legend:{position:'bottom', labels:{boxWidth:10,padding:14}}},
+      scales:{ x:{grid:{display:false}}, y:{grid:{color:'rgba(255,255,255,.06)'}} },
+      animation:{duration:900, easing:'easeOutCubic'} }
+  });
+
+  lineChart = new Chart(ctxL, {
+    type:'line',
+    data:{ labels:[], datasets:[{ label:'Cumulative Achieved', data:[], borderColor:'#f5c451',
+      backgroundColor:'rgba(245,196,81,.15)', fill:true, tension:.35, pointRadius:3, pointBackgroundColor:'#ff6a1a' }] },
+    options:{ plugins:{legend:{display:false}},
+      scales:{ x:{grid:{display:false}}, y:{grid:{color:'rgba(255,255,255,.06)'}} },
+      animation:{duration:900, easing:'easeOutCubic'} }
+  });
+
+  chartsReady = true;
+}
+
+function updateCharts(agg){
+  if(!chartsReady) return;
+  doughnutChart.data.datasets[0].data = [agg.totalAchieved, agg.remaining];
+  doughnutChart.update();
+
+  const sorted = [...managers].sort((a,b)=>b.achieved-a.achieved);
+  barChart.data.labels = sorted.map(m=>m.name);
+  barChart.data.datasets[0].data = sorted.map(m=>m.achieved);
+  barChart.data.datasets[1].data = sorted.map(m=>m.target);
+  barChart.update();
+
+  const totalNow = agg.totalAchieved;
+  window.__lineHistory = window.__lineHistory || [];
+  const label = new Date().toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit'});
+  window.__lineHistory.push({label, value: totalNow});
+  if(window.__lineHistory.length > 20) window.__lineHistory.shift();
+  lineChart.data.labels = window.__lineHistory.map(h=>h.label);
+  lineChart.data.datasets[0].data = window.__lineHistory.map(h=>h.value);
+  lineChart.update();
+}
+
+/* =========================================================================
+   GOOGLE SHEET LIVE SYNC (gviz JSON endpoint — works cross-origin for
+   sheets shared as "Anyone with the link — Viewer")
+   ========================================================================= */
+// minimal RFC4180-ish CSV parser (handles quoted fields with commas/newlines)
+function parseCSV(text){
+  const rows = [];
+  let row = [], field = '', inQuotes = false;
+  for(let i=0;i<text.length;i++){
+    const c = text[i], next = text[i+1];
+    if(inQuotes){
+      if(c === '"' && next === '"'){ field+='"'; i++; }
+      else if(c === '"'){ inQuotes = false; }
+      else field += c;
+    } else {
+      if(c === '"'){ inQuotes = true; }
+      else if(c === ','){ row.push(field); field=''; }
+      else if(c === '\n'){ row.push(field); rows.push(row); row=[]; field=''; }
+      else if(c === '\r'){ /* skip */ }
+      else field += c;
+    }
+  }
+  if(field.length || row.length){ row.push(field); rows.push(row); }
+  return rows.filter(r => r.some(cell => cell.trim() !== ''));
+}
+
+function rowsToManagers(rows){
+  const header = rows[0].map(h => h.trim().toLowerCase());
+  const nameIdx = header.findIndex(c=>c.includes('manager')||c.includes('name'));
+  const targetIdx = header.findIndex(c=>c.includes('target'));
+  const achievedIdx = header.findIndex(c=>c.includes('achiev'));
+  const reportsIdx = header.findIndex(c=>c.includes('report'));
+  if(nameIdx<0 || targetIdx<0 || achievedIdx<0) throw new Error('columns-not-found');
+
+  return rows.slice(1).map(r=>({
+    name: (r[nameIdx]||'').trim(),
+    target: Number((r[targetIdx]||'0').replace(/,/g,'')) || 0,
+    achieved: Number((r[achievedIdx]||'0').replace(/,/g,'')) || 0,
+    reportsTo: reportsIdx>=0 ? (r[reportsIdx]||'').trim() : ''
+  })).filter(r=>r.name && !/^total$/i.test(r.name));
+}
+
+async function fetchSheetData(){
+  if(CONFIG.SHEET_MODE === 'json'){
+    if(!CONFIG.JSON_URL) throw new Error('no-sheet-configured');
+    const res = await fetch(`${CONFIG.JSON_URL}${CONFIG.JSON_URL.includes('?')?'&':'?'}_ts=${Date.now()}`, {cache:'no-store'});
+    if(!res.ok) throw new Error('fetch-failed');
+    const data = await res.json();
+    if(!Array.isArray(data) || data.length===0) throw new Error('parse-failed');
+    const keys = Object.keys(data[0]).map(k=>k.toLowerCase());
+    const findKey = (needle) => Object.keys(data[0]).find(k=>k.toLowerCase().includes(needle));
+    const nameKey = findKey('manager') || findKey('name');
+    const targetKey = findKey('target');
+    const achievedKey = findKey('achiev');
+    const reportsKey = findKey('report');
+    if(!nameKey || !targetKey || !achievedKey) throw new Error('columns-not-found');
+    return data.map(r=>({
+      name: String(r[nameKey]||'').trim(),
+      target: Number(r[targetKey])||0,
+      achieved: Number(r[achievedKey])||0,
+      reportsTo: reportsKey ? String(r[reportsKey]||'').trim() : ''
+    })).filter(r=>r.name && !/^total$/i.test(r.name));
+  }
+
+  if(CONFIG.SHEET_MODE === 'csv'){
+    if(!CONFIG.CSV_URL) throw new Error('no-sheet-configured');
+    const res = await fetch(`${CONFIG.CSV_URL}${CONFIG.CSV_URL.includes('?')?'&':'?'}_ts=${Date.now()}`, {cache:'no-store'});
+    if(!res.ok) throw new Error('fetch-failed');
+    const text = await res.text();
+    const rows = parseCSV(text);
+    if(rows.length < 2) throw new Error('parse-failed');
+    return rowsToManagers(rows);
+  }
+
+  // gviz mode (regular /d/{ID}/... share link)
+  if(!CONFIG.SHEET_ID) throw new Error('no-sheet-configured');
+  const url = `https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(CONFIG.SHEET_NAME)}`;
+  const res = await fetch(url, {cache:'no-store'});
+  if(!res.ok) throw new Error('fetch-failed');
+  const text = await res.text();
+  const match = text.match(/setResponse\(([\s\S]*)\);?\s*$/);
+  if(!match) throw new Error('parse-failed');
+  const json = JSON.parse(match[1]);
+  const cols = json.table.cols.map(c => (c.label||'').trim().toLowerCase());
+  const nameIdx = cols.findIndex(c=>c.includes('manager')||c.includes('name'));
+  const targetIdx = cols.findIndex(c=>c.includes('target'));
+  const achievedIdx = cols.findIndex(c=>c.includes('achiev'));
+  const reportsIdx = cols.findIndex(c=>c.includes('report'));
+  if(nameIdx<0 || targetIdx<0 || achievedIdx<0) throw new Error('columns-not-found');
+
+  return json.table.rows.map(r=>{
+    const cells = r.c;
+    return {
+      name: cells[nameIdx]?.v,
+      target: Number(cells[targetIdx]?.v)||0,
+      achieved: Number(cells[achievedIdx]?.v)||0,
+      reportsTo: reportsIdx>=0 ? (cells[reportsIdx]?.v || '') : ''
+    };
+  }).filter(r=>r.name);
+}
+
+async function syncData(){
+  const sheetConfigured = CONFIG.SHEET_MODE === 'csv' ? !!CONFIG.CSV_URL
+    : CONFIG.SHEET_MODE === 'json' ? !!CONFIG.JSON_URL
+    : !!CONFIG.SHEET_ID;
+  try{
+    if(sheetConfigured){
+      const rows = await fetchSheetData();
+      const managerRows = rows.filter(r=>!r.reportsTo);
+      const tlRows = rows.filter(r=>r.reportsTo);
+      managers = managerRows.map(r=>{
+        const existing = managers.find(m=>m.name===r.name);
+        return {
+          name:r.name, target:r.target, achieved:r.achieved,
+          prevAchieved: existing ? existing.achieved : r.achieved,
+          history: existing ? existing.history : []
+        };
+      });
+      tls = tlRows.map(r=>{
+        const existing = tls.find(t=>t.name===r.name);
+        return {
+          name:r.name, target:r.target, achieved:r.achieved, reportsTo:r.reportsTo,
+          prevAchieved: existing ? existing.achieved : r.achieved
+        };
+      });
+      usingLiveSheet = true;
+      document.getElementById('liveLabel').textContent = 'LIVE · GOOGLE SHEET';
+    } else {
+      simulateDemoTick();
+      usingLiveSheet = false;
+      document.getElementById('liveLabel').textContent = 'LIVE · DEMO DATA';
+    }
+  }catch(err){
+    console.warn('Sheet sync failed, falling back to demo tick:', err.message);
+    simulateDemoTick();
+    usingLiveSheet = false;
+    document.getElementById('liveLabel').textContent = 'LIVE · DEMO (SHEET UNREACHABLE)';
+  }
+
+  try{
+    const agg = renderHeaderAndKpis();
+    renderLeaderboard();
+    renderTLGroups();
+    updateCharts(agg);
+    document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
+  }catch(renderErr){
+    console.error('Render failed:', renderErr);
+  }
+  restartCountdown();
+}
+
+/* =========================================================================
+   COUNTDOWN BAR
+   ========================================================================= */
+function restartCountdown(){
+  countdownStart = performance.now();
+  const fill = document.getElementById('countdownFill');
+  fill.style.transition = 'none';
+  fill.style.transform = 'scaleX(1)';
+  requestAnimationFrame(()=>{
+    fill.style.transition = `transform ${CONFIG.REFRESH_MS}ms linear`;
+    fill.style.transform = 'scaleX(0)';
+  });
+  clearInterval(window.__countTick);
+  let remaining = Math.round(CONFIG.REFRESH_MS/1000);
+  document.getElementById('nextSyncCount').textContent = remaining;
+  window.__countTick = setInterval(()=>{
+    remaining -= 1;
+    if(remaining <= 0){ clearInterval(window.__countTick); return; }
+    document.getElementById('nextSyncCount').textContent = remaining;
+  }, 1000);
+}
+
+/* =========================================================================
+   CONTROLS: search, TV mode, export, connect sheet
+   ========================================================================= */
+document.getElementById('searchInput').addEventListener('input', e=>{
+  searchTerm = e.target.value;
+  renderLeaderboard();
+  renderTLGroups();
+});
+
+document.getElementById('btnTv').addEventListener('click', ()=>{
+  document.body.classList.toggle('tv');
+  if(document.body.classList.contains('tv') && document.documentElement.requestFullscreen){
+    document.documentElement.requestFullscreen().catch(()=>{});
+  } else if(document.exitFullscreen && document.fullscreenElement){
+    document.exitFullscreen().catch(()=>{});
+  }
+});
+
+document.getElementById('btnPng').addEventListener('click', ()=>{
+  if(typeof html2canvas === 'undefined'){ alert('Export library did not load (blocked CDN). Try refreshing or check your network/ad-blocker.'); return; }
+  html2canvas(document.body, {backgroundColor:'#07070b', scale:2}).then(canvas=>{
+    const link = document.createElement('a');
+    link.download = `admissions-dashboard-${Date.now()}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  });
+});
+
+document.getElementById('btnPdf').addEventListener('click', ()=>{
+  if(typeof html2canvas === 'undefined' || typeof window.jspdf === 'undefined'){ alert('Export library did not load (blocked CDN). Try refreshing or check your network/ad-blocker.'); return; }
+  html2canvas(document.body, {backgroundColor:'#07070b', scale:2}).then(canvas=>{
+    const { jsPDF } = window.jspdf;
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF({ orientation: canvas.width>canvas.height?'l':'p', unit:'px', format:[canvas.width, canvas.height] });
+    pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+    pdf.save(`admissions-dashboard-${Date.now()}.pdf`);
+  });
+});
+
+const modalBackdrop = document.getElementById('modalBackdrop');
+document.getElementById('btnSheet').addEventListener('click', ()=>{
+  document.getElementById('sheetUrlInput').value = '';
+  document.getElementById('sheetNameInput').value = CONFIG.SHEET_NAME;
+  document.getElementById('modalWarn').textContent = '';
+  modalBackdrop.classList.add('open');
+});
+document.getElementById('btnCancelModal').addEventListener('click', ()=> modalBackdrop.classList.remove('open'));
+document.getElementById('btnSaveModal').addEventListener('click', async ()=>{
+  const url = document.getElementById('sheetUrlInput').value.trim();
+  const sheetName = document.getElementById('sheetNameInput').value.trim() || 'Sheet1';
+
+  if(/script\.google\.com\/macros/.test(url)){
+    CONFIG.SHEET_MODE = 'json';
+    CONFIG.JSON_URL = url;
+  } else if(/output=csv|\/pub\b/.test(url)){
+    CONFIG.SHEET_MODE = 'csv';
+    CONFIG.CSV_URL = url;
+  } else {
+    const idMatch = url.match(/\/d\/(?:e\/)?([a-zA-Z0-9-_]+)/);
+    if(!idMatch){
+      document.getElementById('modalWarn').textContent = 'Could not read that link. Paste a Publish-to-web CSV link or a full sheet share link.';
+      return;
+    }
+    CONFIG.SHEET_MODE = 'gviz';
+    CONFIG.SHEET_ID = idMatch[1];
+    CONFIG.SHEET_NAME = sheetName;
+  }
+
+  modalBackdrop.classList.remove('open');
+  clearInterval(refreshTimer);
+  await syncData();
+  refreshTimer = setInterval(syncData, CONFIG.REFRESH_MS);
+});
+
+/* =========================================================================
+   BOOT
+   ========================================================================= */
+syncData().catch(err=>console.warn('initial syncData failed:', err));
+refreshTimer = setInterval(()=>{ syncData().catch(err=>console.warn('syncData failed:', err)); }, CONFIG.REFRESH_MS);
+
+(window.__libsReady || Promise.resolve()).then(()=>{
+  try{
+    initCharts();
+    updateCharts(computeAggregate());
+  }catch(err){ console.warn('initCharts failed:', err); }
+});
+</script>
+</body>
+</html>
