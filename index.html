@@ -93,7 +93,28 @@ body{ padding: 28px clamp(14px,3vw,40px) 60px; }
 .dial-center{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:var(--gold);}
 
 .brand h1{ font-size:clamp(20px,2.4vw,28px); letter-spacing:0.5px; }
-.brand .sub{ color:var(--muted); font-size:12.5px; margin-top:4px; display:flex; gap:14px; flex-wrap:wrap;}
+.heading-anim{
+  background:linear-gradient(90deg, var(--white) 0%, var(--gold) 25%, var(--orange) 50%, var(--gold) 75%, var(--white) 100%);
+  background-size:250% auto;
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+  animation: shimmerText 6s linear infinite;
+  filter: drop-shadow(0 0 14px rgba(255,140,42,0.25));
+}
+@keyframes shimmerText{
+  0%{ background-position:0% center; }
+  100%{ background-position:250% center; }
+}
+.month-chip{
+  display:inline-flex; align-items:center; gap:6px; font-family:'Space Grotesk'; font-weight:700;
+  color:var(--gold); background:rgba(245,196,81,.12); border:1px solid rgba(245,196,81,.35);
+  padding:3px 10px; border-radius:999px; font-size:11.5px; letter-spacing:.4px;
+  animation: chipPulse 2.6s ease-in-out infinite;
+}
+@keyframes chipPulse{
+  0%,100%{ box-shadow:0 0 0 rgba(245,196,81,0); }
+  50%{ box-shadow:0 0 12px rgba(245,196,81,.45); }
+}
+.brand .sub{ color:var(--muted); font-size:12.5px; margin-top:4px; display:flex; gap:14px; flex-wrap:wrap; align-items:center;}
 .brand .sub b{ color:var(--white); font-weight:600; }
 
 .status-cluster{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
@@ -263,6 +284,26 @@ body.tv h1{ font-size:36px; }
 /* empty state for search */
 .empty-state{ grid-column:1/-1; text-align:center; padding:40px; color:var(--muted); font-size:13px; }
 
+/* ---------- TL groups ---------- */
+.tl-group{
+  background:rgba(255,255,255,0.02); border:1px solid var(--glass-brd); border-radius:var(--radius);
+  padding:16px; margin-bottom:16px; backdrop-filter:blur(10px);
+}
+.tl-group-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap;}
+.tl-group-title{ display:flex; align-items:center; gap:12px; }
+.tl-group-avatar{
+  width:38px; height:38px; border-radius:12px; display:flex; align-items:center; justify-content:center;
+  background:linear-gradient(135deg,#4f9dff,#c58bff); font-family:'Space Grotesk'; font-weight:700; font-size:13px; color:#0b0b14; flex:none;
+}
+.tl-group-name{ font-family:'Space Grotesk'; font-weight:600; font-size:14.5px; }
+.tl-group-sub{ font-size:11.5px; color:var(--muted); margin-top:2px; }
+.tl-group-pct{ font-family:'Space Grotesk'; font-weight:700; font-size:18px; color:var(--blue); }
+.tl-cards{ display:grid; grid-template-columns:repeat(auto-fill, minmax(240px,1fr)); gap:12px; }
+.tl-card{ padding:14px; }
+.tl-card .rank-badge{ width:30px; height:30px; font-size:12px; }
+.tl-card .avatar{ width:34px; height:34px; font-size:12px; }
+.tl-card .mcard-name{ font-size:13.5px; }
+
 @media(max-width:700px){
   .charts-grid{ grid-template-columns:1fr; }
 }
@@ -287,8 +328,9 @@ body.tv h1{ font-size:36px; }
       <div class="dial-center" id="dialPct">0%</div>
     </div>
     <div>
-      <h1 class="font-display">🎯 <span id="monthLabel">THIS MONTH'S</span> TARGET</h1>
+      <h1 class="font-display heading-anim">🎯 SALES TARGET DASHBOARD</h1>
       <div class="sub">
+        <span class="month-chip" id="monthLabel">THIS MONTH</span>
         <span>Today: <b id="todayLabel">-</b></span>
         <span>Period: <b id="periodLabel">-</b></span>
         <span>Days Passed: <b id="daysPassedLabel">-</b></span>
@@ -358,6 +400,12 @@ body.tv h1{ font-size:36px; }
 </div>
 <div class="leaderboard" id="leaderboard"></div>
 
+<!-- ============ TEAM LEADS (grouped by Manager) ============ -->
+<div class="section-head">
+  <h2>🧑‍💼 Team Leads by Manager <span class="tag">Auto-grouped</span></h2>
+</div>
+<div id="tlGroups"></div>
+
 <!-- ============ CHARTS ============ -->
 <div class="section-head"><h2>📊 Performance Analytics</h2></div>
 <div class="charts-grid">
@@ -415,6 +463,7 @@ const CONFIG = {
 };
 
 let managers = [];       // live data: {name, target, achieved, prevAchieved, history:[]}
+let tls = [];             // Team Leads: {name, target, achieved, prevAchieved, reportsTo}
 let usingLiveSheet = false;
 let searchTerm = '';
 let refreshTimer = null;
@@ -430,6 +479,13 @@ function seedDemoData(){
     { name:'Manas',    target:100, achieved:19 },
     { name:'Abhishek', target:30,  achieved:3  },
   ].map(m => ({...m, prevAchieved:m.achieved, history:[Math.max(0,m.achieved-6)]}));
+
+  tls = [
+    { name:'Rahul', target:80, achieved:12, reportsTo:'Aslam' },
+    { name:'Priya', target:60, achieved:9,  reportsTo:'Aslam' },
+    { name:'Karan', target:70, achieved:8,  reportsTo:'Deepesh' },
+    { name:'Sneha', target:40, achieved:5,  reportsTo:'Manas' },
+  ].map(t => ({...t, prevAchieved:t.achieved}));
 }
 seedDemoData();
 
@@ -440,6 +496,13 @@ function simulateDemoTick(){
     if(Math.random() < 0.7){
       const bump = Math.floor(Math.random()*3); // 0-2
       m.achieved = Math.min(m.target, m.achieved + bump);
+    }
+  });
+  tls.forEach(t=>{
+    t.prevAchieved = t.achieved;
+    if(Math.random() < 0.7){
+      const bump = Math.floor(Math.random()*2); // 0-1
+      t.achieved = Math.min(t.target, t.achieved + bump);
     }
   });
 }
@@ -663,6 +726,93 @@ function renderLeaderboard(){
 }
 
 /* =========================================================================
+   RENDER: TEAM LEADS — grouped under their reporting Manager
+   ========================================================================= */
+function renderTLGroups(){
+  const wrap = document.getElementById('tlGroups');
+  if(!wrap) return;
+
+  if(tls.length===0){
+    wrap.innerHTML = `<div class="empty-state">No Team Leads added yet — add a "Reports To" column in your sheet to enable this section.</div>`;
+    return;
+  }
+
+  // order manager groups to match the leaderboard rank order; unmatched reportsTo -> "Unassigned"
+  const managerOrder = [...managers].sort((a,b)=>b.achieved-a.achieved).map(m=>m.name);
+  const grouped = {};
+  tls.forEach(t=>{
+    const key = managerOrder.includes(t.reportsTo) ? t.reportsTo : (t.reportsTo || 'Unassigned');
+    (grouped[key] = grouped[key] || []).push(t);
+  });
+  const groupNames = Object.keys(grouped).sort((a,b)=>{
+    const ai = managerOrder.indexOf(a), bi = managerOrder.indexOf(b);
+    if(ai<0 && bi<0) return a.localeCompare(b);
+    if(ai<0) return 1;
+    if(bi<0) return -1;
+    return ai-bi;
+  });
+
+  const filtered = searchTerm ? groupNames.filter(g =>
+    g.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    grouped[g].some(t=>t.name.toLowerCase().includes(searchTerm.toLowerCase()))
+  ) : groupNames;
+
+  if(filtered.length===0){
+    wrap.innerHTML = `<div class="empty-state">No Team Leads match "${searchTerm}"</div>`;
+    return;
+  }
+
+  wrap.innerHTML = '';
+  filtered.forEach(groupName=>{
+    const groupTls = [...grouped[groupName]].sort((a,b)=>b.achieved-a.achieved);
+    const groupTarget = groupTls.reduce((s,t)=>s+t.target,0);
+    const groupAchieved = groupTls.reduce((s,t)=>s+t.achieved,0);
+    const groupPct = groupTarget ? (groupAchieved/groupTarget*100) : 0;
+
+    const section = document.createElement('div');
+    section.className = 'tl-group';
+    section.innerHTML = `
+      <div class="tl-group-head">
+        <div class="tl-group-title">
+          <span class="tl-group-avatar">${initials(groupName)}</span>
+          <div>
+            <div class="tl-group-name">Reporting to ${groupName}</div>
+            <div class="tl-group-sub">${groupTls.length} Team Lead${groupTls.length>1?'s':''} · ${groupAchieved}/${groupTarget} achieved</div>
+          </div>
+        </div>
+        <div class="tl-group-pct">${groupPct.toFixed(1)}%</div>
+      </div>
+      <div class="tl-cards"></div>
+    `;
+    const cardHolder = section.querySelector('.tl-cards');
+    groupTls.forEach((t,i)=>{
+      const card = buildCard(t, i+1, {});
+      card.classList.add('tl-card');
+      card.style.opacity='0'; card.style.transform='translateY(10px)';
+      cardHolder.appendChild(card);
+      requestAnimationFrame(()=>{
+        card.style.transition='opacity .5s, transform .5s';
+        card.style.opacity='1'; card.style.transform='translateY(0)';
+      });
+
+      const pct = t.target ? (t.achieved/t.target*100) : 0;
+      const remaining = Math.max(0, t.target-t.achieved);
+      countUp(card.querySelector('[data-role="achv"]'), t.achieved);
+      countUp(card.querySelector('[data-role="rem"]'), remaining);
+      countUp(card.querySelector('[data-role="pct"]'), pct, {decimals:1, suffix:'%'});
+      const bar = card.querySelector('[data-role="bar"]');
+      requestAnimationFrame(()=> bar.style.width = Math.min(100,pct)+'%');
+      if(t.achieved !== t.prevAchieved){
+        flashCard(card);
+        bar.classList.add('pulse');
+        setTimeout(()=>bar.classList.remove('pulse'), 1000);
+      }
+    });
+    wrap.appendChild(section);
+  });
+}
+
+/* =========================================================================
    CHARTS
    ========================================================================= */
 let doughnutChart, barChart, lineChart, chartsReady = false;
@@ -761,12 +911,14 @@ function rowsToManagers(rows){
   const nameIdx = header.findIndex(c=>c.includes('manager')||c.includes('name'));
   const targetIdx = header.findIndex(c=>c.includes('target'));
   const achievedIdx = header.findIndex(c=>c.includes('achiev'));
+  const reportsIdx = header.findIndex(c=>c.includes('report'));
   if(nameIdx<0 || targetIdx<0 || achievedIdx<0) throw new Error('columns-not-found');
 
   return rows.slice(1).map(r=>({
     name: (r[nameIdx]||'').trim(),
     target: Number((r[targetIdx]||'0').replace(/,/g,'')) || 0,
-    achieved: Number((r[achievedIdx]||'0').replace(/,/g,'')) || 0
+    achieved: Number((r[achievedIdx]||'0').replace(/,/g,'')) || 0,
+    reportsTo: reportsIdx>=0 ? (r[reportsIdx]||'').trim() : ''
   })).filter(r=>r.name && !/^total$/i.test(r.name));
 }
 
@@ -782,11 +934,13 @@ async function fetchSheetData(){
     const nameKey = findKey('manager') || findKey('name');
     const targetKey = findKey('target');
     const achievedKey = findKey('achiev');
+    const reportsKey = findKey('report');
     if(!nameKey || !targetKey || !achievedKey) throw new Error('columns-not-found');
     return data.map(r=>({
       name: String(r[nameKey]||'').trim(),
       target: Number(r[targetKey])||0,
-      achieved: Number(r[achievedKey])||0
+      achieved: Number(r[achievedKey])||0,
+      reportsTo: reportsKey ? String(r[reportsKey]||'').trim() : ''
     })).filter(r=>r.name && !/^total$/i.test(r.name));
   }
 
@@ -813,6 +967,7 @@ async function fetchSheetData(){
   const nameIdx = cols.findIndex(c=>c.includes('manager')||c.includes('name'));
   const targetIdx = cols.findIndex(c=>c.includes('target'));
   const achievedIdx = cols.findIndex(c=>c.includes('achiev'));
+  const reportsIdx = cols.findIndex(c=>c.includes('report'));
   if(nameIdx<0 || targetIdx<0 || achievedIdx<0) throw new Error('columns-not-found');
 
   return json.table.rows.map(r=>{
@@ -820,7 +975,8 @@ async function fetchSheetData(){
     return {
       name: cells[nameIdx]?.v,
       target: Number(cells[targetIdx]?.v)||0,
-      achieved: Number(cells[achievedIdx]?.v)||0
+      achieved: Number(cells[achievedIdx]?.v)||0,
+      reportsTo: reportsIdx>=0 ? (cells[reportsIdx]?.v || '') : ''
     };
   }).filter(r=>r.name);
 }
@@ -832,12 +988,21 @@ async function syncData(){
   try{
     if(sheetConfigured){
       const rows = await fetchSheetData();
-      managers = rows.map(r=>{
+      const managerRows = rows.filter(r=>!r.reportsTo);
+      const tlRows = rows.filter(r=>r.reportsTo);
+      managers = managerRows.map(r=>{
         const existing = managers.find(m=>m.name===r.name);
         return {
           name:r.name, target:r.target, achieved:r.achieved,
           prevAchieved: existing ? existing.achieved : r.achieved,
           history: existing ? existing.history : []
+        };
+      });
+      tls = tlRows.map(r=>{
+        const existing = tls.find(t=>t.name===r.name);
+        return {
+          name:r.name, target:r.target, achieved:r.achieved, reportsTo:r.reportsTo,
+          prevAchieved: existing ? existing.achieved : r.achieved
         };
       });
       usingLiveSheet = true;
@@ -857,6 +1022,7 @@ async function syncData(){
   try{
     const agg = renderHeaderAndKpis();
     renderLeaderboard();
+    renderTLGroups();
     updateCharts(agg);
     document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
   }catch(renderErr){
@@ -893,6 +1059,7 @@ function restartCountdown(){
 document.getElementById('searchInput').addEventListener('input', e=>{
   searchTerm = e.target.value;
   renderLeaderboard();
+  renderTLGroups();
 });
 
 document.getElementById('btnTv').addEventListener('click', ()=>{
