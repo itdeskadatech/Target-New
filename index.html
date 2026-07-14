@@ -256,8 +256,65 @@ body{ padding: 28px clamp(14px,3vw,40px) 60px; }
 .footer-banner .line1{ font-family:'Space Grotesk'; font-weight:700; font-size:15px; letter-spacing:.5px; color:var(--white); }
 .footer-banner .line2{ font-family:'Space Grotesk'; font-weight:700; font-size:26px; background:linear-gradient(90deg,var(--orange),var(--gold)); -webkit-background-clip:text; background-clip:text; color:transparent; margin-top:4px;}
 
+/* ---------- modal (QR popup) ---------- */
+.modal-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.6); backdrop-filter:blur(4px); display:none; align-items:center; justify-content:center; z-index:60; }
+.modal-backdrop.open{ display:flex; }
+.modal{ width:min(340px,90vw); background:#0d0e15; border:1px solid var(--glass-brd); border-radius:18px; padding:22px; box-shadow:var(--shadow); }
+.modal-actions{ display:flex; gap:10px; margin-top:16px; }
+.btn{ flex:1; padding:10px 14px; border-radius:10px; border:none; cursor:pointer; font-weight:600; font-size:13px; }
+.btn-primary{ background:linear-gradient(90deg,var(--orange),var(--gold)); color:#180c00; }
+
 /* ---------- TV mode ---------- */
 body.tv .icon-btn, body.tv .search-wrap, body.tv .section-head .tag{ display:none !important; }
+body.tv-rotate .tv-page{ display:none; }
+body.tv-rotate .tv-page.active{ display:block; animation: pageIn .5s ease; }
+@keyframes pageIn{ from{ opacity:0; transform:translateY(10px);} to{ opacity:1; transform:translateY(0);} }
+
+.pace-chip{ font-size:9.5px; padding:2px 7px; border-radius:999px; font-weight:700; letter-spacing:.3px; margin-left:6px; }
+.pace-ahead{ background:rgba(52,211,153,.15); color:var(--green); border:1px solid rgba(52,211,153,.4); }
+.pace-behind{ background:rgba(255,84,112,.15); color:#ff8fa3; border:1px solid rgba(255,84,112,.4); }
+.last-update-tag{ font-size:10px; color:var(--muted); margin-top:10px; text-align:right; }
+
+#confettiCanvas{ position:fixed; inset:0; pointer-events:none; z-index:80; }
+
+/* ---------- ambient living background ---------- */
+.ambient-bg{ position:fixed; inset:0; z-index:-1; overflow:hidden; pointer-events:none; }
+.orb{ position:absolute; border-radius:50%; filter:blur(70px); opacity:.30; }
+.orb1{ width:420px; height:420px; background:radial-gradient(circle, var(--orange), transparent 70%); top:-10%; left:-8%; animation: drift1 26s ease-in-out infinite; }
+.orb2{ width:360px; height:360px; background:radial-gradient(circle, var(--gold), transparent 70%); bottom:-12%; right:-6%; animation: drift2 32s ease-in-out infinite; }
+.orb3{ width:300px; height:300px; background:radial-gradient(circle, #c58bff, transparent 70%); top:40%; left:60%; animation: drift3 38s ease-in-out infinite; }
+@keyframes drift1{ 0%,100%{ transform:translate(0,0) scale(1);} 50%{ transform:translate(60px,80px) scale(1.15);} }
+@keyframes drift2{ 0%,100%{ transform:translate(0,0) scale(1);} 50%{ transform:translate(-70px,-50px) scale(1.1);} }
+@keyframes drift3{ 0%,100%{ transform:translate(0,0) scale(1);} 50%{ transform:translate(-90px,60px) scale(0.9);} }
+
+/* ---------- insights ticker ---------- */
+.ticker{
+  background:var(--glass); border:1px solid var(--glass-brd); backdrop-filter:blur(16px);
+  border-radius:14px; padding:11px 18px; margin-bottom:20px; overflow:hidden; position:relative;
+  display:flex; align-items:center; gap:10px;
+}
+.ticker .ticker-icon{ flex:none; animation: iconPulse 2s ease-in-out infinite; }
+@keyframes iconPulse{ 0%,100%{ transform:scale(1);} 50%{ transform:scale(1.2);} }
+.ticker-content{ font-size:13px; color:var(--white); font-weight:500; transition: opacity .4s; }
+.ticker-content b{ color:var(--gold); }
+
+.live-clock{ font-variant-numeric:tabular-nums; color:var(--gold); }
+
+/* ---------- month-over-month ---------- */
+.mom-summary{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+@media(max-width:700px){ .mom-summary{ grid-template-columns:1fr; } }
+.mom-card{
+  background:var(--glass); border:1px solid var(--glass-brd); backdrop-filter:blur(18px);
+  border-radius:var(--radius); padding:20px; box-shadow:var(--shadow);
+}
+.mom-card .mom-label{ font-size:11px; letter-spacing:.6px; color:var(--muted); text-transform:uppercase; font-weight:600; }
+.mom-card .mom-value{ font-family:'Space Grotesk'; font-size:28px; font-weight:700; margin-top:6px; }
+.mom-card .mom-sub{ font-size:12px; color:var(--muted); margin-top:6px; }
+.mom-card.this-month .mom-value{ color:var(--orange2); }
+.mom-card.last-month .mom-value{ color:var(--blue); }
+.mom-delta{ display:inline-flex; align-items:center; gap:4px; font-weight:700; padding:2px 8px; border-radius:999px; font-size:12px; margin-top:8px; }
+.mom-delta.up{ background:rgba(52,211,153,.15); color:var(--green); }
+.mom-delta.down{ background:rgba(255,84,112,.15); color:#ff8fa3; }
 body.tv{ padding:34px 46px; }
 body.tv .kpi .k-value{ font-size:clamp(28px,3.4vw,42px); }
 body.tv .mcard-name{ font-size:19px; }
@@ -297,8 +354,14 @@ body.tv h1{ font-size:36px; }
 </style>
 </head>
 <body>
+<div class="ambient-bg">
+  <div class="orb orb1"></div>
+  <div class="orb orb2"></div>
+  <div class="orb orb3"></div>
+</div>
 
 <!-- ============ TOP BAR ============ -->
+<canvas id="confettiCanvas"></canvas>
 <div class="topbar">
   <div class="brand">
     <div class="dial">
@@ -318,7 +381,7 @@ body.tv h1{ font-size:36px; }
       <h1 class="font-display heading-anim">🎯 SALES TARGET DASHBOARD</h1>
       <div class="sub">
         <span class="month-chip" id="monthLabel">THIS MONTH</span>
-        <span>Today: <b id="todayLabel">-</b></span>
+        <span>Today: <b id="todayLabel">-</b> <span class="live-clock" id="liveClock"></span></span>
         <span>Period: <b id="periodLabel">-</b></span>
         <span>Days Passed: <b id="daysPassedLabel">-</b></span>
         <span>Days Left: <b id="daysLeftLabel">-</b></span>
@@ -327,9 +390,23 @@ body.tv h1{ font-size:36px; }
   </div>
   <div class="status-cluster">
     <div class="pill"><span class="live-dot"></span> <span id="liveLabel">LIVE · DEMO DATA</span></div>
+    <div class="pill" id="momChip" style="display:none;">📈 vs last month: <b id="momValue" style="margin-left:4px;">-</b></div>
+    <button class="icon-btn" id="btnSound" title="Toggle milestone sound">🔔</button>
+    <button class="icon-btn" id="btnQr" title="Show QR code to this dashboard">📱</button>
+    <button class="icon-btn" id="btnCsv" title="Export CSV snapshot">📊</button>
     <button class="icon-btn" id="btnTv" title="TV Display Mode">🖥️</button>
     <button class="icon-btn" id="btnPng" title="Export PNG">📤</button>
     <button class="icon-btn" id="btnPdf" title="Export PDF">📄</button>
+  </div>
+</div>
+
+<!-- ============ QR MODAL ============ -->
+<div class="modal-backdrop" id="qrBackdrop">
+  <div class="modal" style="text-align:center;">
+    <h3 class="font-display" style="margin-bottom:14px;">📱 Scan to open this dashboard</h3>
+    <img id="qrImage" src="" alt="QR code" style="width:220px;height:220px;border-radius:12px;background:#fff;padding:10px;">
+    <p style="margin-top:14px; word-break:break-all;" id="qrUrlText"></p>
+    <div class="modal-actions"><button class="btn btn-primary" id="btnCloseQr">Close</button></div>
   </div>
 </div>
 
@@ -337,6 +414,12 @@ body.tv h1{ font-size:36px; }
 <div class="syncbar">
   <div>Last updated: <b id="lastUpdated" style="color:var(--white)">–</b> &nbsp;·&nbsp; next sync in <span id="nextSyncCount">5</span>s</div>
   <div class="countdown-track"><div class="countdown-fill" id="countdownFill"></div></div>
+</div>
+
+<!-- ============ INSIGHTS TICKER ============ -->
+<div class="ticker">
+  <span class="ticker-icon">💡</span>
+  <div class="ticker-content" id="tickerContent">Loading insights…</div>
 </div>
 
 <!-- ============ KPI GRID ============ -->
@@ -380,32 +463,53 @@ body.tv h1{ font-size:36px; }
 </div>
 
 <!-- ============ LEADERBOARD ============ -->
-<div class="section-head">
-  <h2>🏆 Live Leaderboard <span class="tag">Auto-ranked</span></h2>
-  <div class="search-wrap"><input type="text" id="searchInput" placeholder="Search manager..."></div>
+<div class="tv-page" id="page-leaderboard">
+  <div class="section-head">
+    <h2>🏆 Live Leaderboard <span class="tag">Auto-ranked</span></h2>
+    <div class="search-wrap"><input type="text" id="searchInput" placeholder="Search manager..."></div>
+  </div>
+  <div class="leaderboard" id="leaderboard"></div>
 </div>
-<div class="leaderboard" id="leaderboard"></div>
 
 <!-- ============ TEAM LEADS (grouped by Manager) ============ -->
-<div class="section-head">
-  <h2>🧑‍💼 Team Leads by Manager <span class="tag">Auto-grouped</span></h2>
+<div class="tv-page" id="page-tls">
+  <div class="section-head">
+    <h2>🧑‍💼 Team Leads by Manager <span class="tag">Auto-grouped</span></h2>
+  </div>
+  <div id="tlGroups"></div>
+
+  <div class="section-head">
+    <h2>🌟 Top Team Leads <span class="tag">Org-wide</span></h2>
+  </div>
+  <div class="leaderboard" id="topTls"></div>
 </div>
-<div id="tlGroups"></div>
 
 <!-- ============ CHARTS ============ -->
-<div class="section-head"><h2>📊 Performance Analytics</h2></div>
-<div class="charts-grid">
-  <div class="chart-card">
-    <h3>🍩 Target vs Achieved vs Remaining</h3>
-    <canvas id="doughnutChart"></canvas>
+<div class="tv-page" id="page-charts">
+  <div class="section-head"><h2>📊 Performance Analytics</h2></div>
+  <div class="charts-grid">
+    <div class="chart-card">
+      <h3>🍩 Target vs Achieved vs Remaining</h3>
+      <canvas id="doughnutChart"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>📈 Managers vs Achieved</h3>
+      <canvas id="barChart"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>📉 Daily Progress Trend</h3>
+      <canvas id="lineChart"></canvas>
+    </div>
   </div>
-  <div class="chart-card">
-    <h3>📈 Managers vs Achieved</h3>
-    <canvas id="barChart"></canvas>
-  </div>
-  <div class="chart-card">
-    <h3>📉 Daily Progress Trend</h3>
-    <canvas id="lineChart"></canvas>
+</div>
+
+<!-- ============ MONTH-OVER-MONTH COMPARISON ============ -->
+<div class="tv-page" id="page-mom">
+  <div class="section-head"><h2>🗓️ Month-over-Month Comparison <span class="tag">Auto-archived</span></h2></div>
+  <div class="mom-summary" id="momSummary"></div>
+  <div class="chart-card" style="margin-top:14px;">
+    <h3>📊 Per-Manager: This Month vs Last Month</h3>
+    <canvas id="momChart"></canvas>
   </div>
 </div>
 
@@ -428,8 +532,21 @@ const CONFIG = {
   SHEET_MODE: 'json',     // 'csv' (published CSV link), 'gviz' (regular share link), or 'json' (Apps Script)
   SHEET_ID: '',           // only used when SHEET_MODE === 'gviz'
   SHEET_NAME: 'Sheet1',
-  REFRESH_MS: 5000
+  REFRESH_MS: 5000,
+  TV_ROTATE_MS: 9000,     // how long each TV-mode page stays visible
+  TV_EXIT_PIN: '1234'     // change this to whatever PIN you want to require to exit TV mode
 };
+
+/* =========================================================================
+   LOCAL STORAGE HELPERS (safe — never throws, degrades gracefully)
+   ========================================================================= */
+function lsGet(key, fallback=null){
+  try{ const v = localStorage.getItem(key); return v===null ? fallback : JSON.parse(v); }
+  catch(e){ return fallback; }
+}
+function lsSet(key, value){
+  try{ localStorage.setItem(key, JSON.stringify(value)); }catch(e){ /* storage unavailable — ignore */ }
+}
 
 let managers = [];       // live data: {name, target, achieved, prevAchieved, history:[]}
 let tls = [];             // Team Leads: {name, target, achieved, prevAchieved, reportsTo}
@@ -502,7 +619,19 @@ function computeAggregate(){
   const totalAchieved = managers.reduce((s,m)=>s+m.achieved,0);
   const remaining = Math.max(0, totalTarget-totalAchieved);
   const pct = totalTarget ? (totalAchieved/totalTarget*100) : 0;
-  return { totalTarget, totalAchieved, remaining, pct };
+  const ds = dateStats();
+  const dailyRate = ds.daysPassed>0 ? totalAchieved/ds.daysPassed : 0;
+  const projected = Math.round(dailyRate * ds.totalDays);
+  const projectedPct = totalTarget ? (projected/totalTarget*100) : 0;
+  return { totalTarget, totalAchieved, remaining, pct, projected, projectedPct };
+}
+
+// pace: compares actual daily rate so far against the rate needed to hit target on time
+function paceStatus(target, achieved, ds){
+  if(!target || ds.daysPassed<=0) return null;
+  const requiredRate = target/ds.totalDays;
+  const actualRate = achieved/ds.daysPassed;
+  return actualRate >= requiredRate*0.92 ? 'ahead' : 'behind';
 }
 
 /* =========================================================================
@@ -533,8 +662,162 @@ function flashCard(el){
 }
 
 /* =========================================================================
+   MILESTONES: confetti + sound when someone crosses 25/50/75/100%
+   ========================================================================= */
+const MILESTONES = [25, 50, 75, 100];
+function checkMilestone(name, target, prevAchieved, achieved, cardEl){
+  if(!target) return;
+  const prevPct = (prevAchieved/target)*100;
+  const newPct = (achieved/target)*100;
+  const crossed = MILESTONES.find(ms => prevPct < ms && newPct >= ms);
+  if(!crossed) return;
+  fireConfetti(cardEl);
+  playDing();
+}
+
+function fireConfetti(originEl){
+  const canvas = document.getElementById('confettiCanvas');
+  if(!canvas) return;
+  canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+  const ctx = canvas.getContext('2d');
+  const rect = originEl ? originEl.getBoundingClientRect() : {left:window.innerWidth/2, top:window.innerHeight/2, width:0, height:0};
+  const originX = rect.left + rect.width/2, originY = rect.top + rect.height/2;
+  const colors = ['#ff6a1a','#ffb020','#f5c451','#34d399','#4f9dff'];
+  const particles = Array.from({length:60}, ()=>({
+    x:originX, y:originY,
+    vx:(Math.random()-0.5)*8, vy:(Math.random()*-8)-2,
+    size:Math.random()*6+3, color:colors[Math.floor(Math.random()*colors.length)],
+    rot:Math.random()*360, vr:(Math.random()-0.5)*10, life:1
+  }));
+  let frame = 0;
+  function tick(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    frame++;
+    let alive = false;
+    particles.forEach(p=>{
+      if(p.life<=0) return;
+      alive = true;
+      p.vy += 0.25; p.x += p.vx; p.y += p.vy; p.rot += p.vr; p.life -= 0.012;
+      ctx.save();
+      ctx.translate(p.x, p.y); ctx.rotate(p.rot*Math.PI/180);
+      ctx.globalAlpha = Math.max(0, p.life);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
+      ctx.restore();
+    });
+    if(alive && frame < 200) requestAnimationFrame(tick);
+    else ctx.clearRect(0,0,canvas.width,canvas.height);
+  }
+  tick();
+}
+
+let __audioCtx = null;
+function playDing(){
+  if(lsGet('soundEnabled', true) === false) return;
+  try{
+    __audioCtx = __audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = __audioCtx;
+    const now = ctx.currentTime;
+    [880, 1174.66].forEach((freq, i)=>{
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine'; osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, now + i*0.12);
+      gain.gain.linearRampToValueAtTime(0.15, now + i*0.12 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i*0.12 + 0.35);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(now + i*0.12); osc.stop(now + i*0.12 + 0.4);
+    });
+  }catch(e){ /* audio blocked — ignore */ }
+}
+
+/* =========================================================================
    RENDER: HEADER DIAL + KPIs
    ========================================================================= */
+// Auto-archives the running total for the current month in localStorage,
+// and shows a "vs last month" comparison once a previous month's data exists.
+// No sheet changes needed — this builds up automatically over time as the
+// dashboard is opened during each month.
+function monthKey(year, month){ return `monthArchive:${year}-${String(month+1).padStart(2,'0')}`; }
+
+// normalizes older archive format (a plain number) into the newer detailed object
+function normalizeArchive(raw){
+  if(raw === null || raw === undefined) return null;
+  if(typeof raw === 'number') return { totalTarget:0, totalAchieved:raw, perManager:{} };
+  return raw;
+}
+
+function updateMonthArchive(ds, agg){
+  const now = new Date();
+  const perManager = {};
+  managers.forEach(m=>{ perManager[m.name] = { target:m.target, achieved:m.achieved }; });
+  lsSet(monthKey(now.getFullYear(), now.getMonth()), {
+    totalTarget: agg.totalTarget, totalAchieved: agg.totalAchieved, perManager, updatedAt: Date.now()
+  });
+
+  const prevDate = new Date(now.getFullYear(), now.getMonth()-1, 1);
+  const prev = normalizeArchive(lsGet(monthKey(prevDate.getFullYear(), prevDate.getMonth())));
+  const chip = document.getElementById('momChip');
+  const val = document.getElementById('momValue');
+  if(prev && prev.totalAchieved > 0){
+    const diffPct = ((agg.totalAchieved - prev.totalAchieved)/prev.totalAchieved*100);
+    const arrow = diffPct >= 0 ? '▲' : '▼';
+    val.textContent = `${arrow} ${Math.abs(diffPct).toFixed(1)}% (prev: ${prev.totalAchieved})`;
+    val.style.color = diffPct >= 0 ? 'var(--green)' : '#ff8fa3';
+    chip.style.display = 'flex';
+  } else {
+    chip.style.display = 'none';
+  }
+
+  renderMomSection(ds, agg, prev);
+}
+
+/* =========================================================================
+   RENDER: MONTH-OVER-MONTH COMPARISON SECTION
+   ========================================================================= */
+let momChart = null;
+function renderMomSection(ds, agg, prev){
+  const summaryEl = document.getElementById('momSummary');
+  if(!summaryEl) return;
+
+  const thisPct = agg.totalTarget ? (agg.totalAchieved/agg.totalTarget*100) : 0;
+
+  if(!prev || prev.totalAchieved <= 0){
+    summaryEl.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">
+      No archived data for last month yet — this section fills in automatically once a full month has passed
+      with the dashboard open at least once. This month's numbers are already being saved as you go.
+    </div>`;
+    if(chartsReady && momChart){ momChart.data.labels=[]; momChart.data.datasets.forEach(d=>d.data=[]); momChart.update(); }
+    return;
+  }
+
+  const prevPct = prev.totalTarget ? (prev.totalAchieved/prev.totalTarget*100) : 0;
+  const diffPct = ((agg.totalAchieved - prev.totalAchieved)/prev.totalAchieved*100);
+  const up = diffPct >= 0;
+
+  summaryEl.innerHTML = `
+    <div class="mom-card this-month">
+      <div class="mom-label">This Month So Far</div>
+      <div class="mom-value">${agg.totalAchieved}</div>
+      <div class="mom-sub">of ${agg.totalTarget} target · ${thisPct.toFixed(1)}% · Day ${ds.daysPassed}/${ds.totalDays}</div>
+      <div class="mom-delta ${up?'up':'down'}">${up?'▲':'▼'} ${Math.abs(diffPct).toFixed(1)}% vs last month</div>
+    </div>
+    <div class="mom-card last-month">
+      <div class="mom-label">Last Month (Final)</div>
+      <div class="mom-value">${prev.totalAchieved}</div>
+      <div class="mom-sub">of ${prev.totalTarget||'—'} target · ${prev.totalTarget?prevPct.toFixed(1)+'%':'—'}</div>
+    </div>
+  `;
+
+  if(chartsReady && momChart){
+    const names = Array.from(new Set([...Object.keys(prev.perManager||{}), ...managers.map(m=>m.name)]));
+    momChart.data.labels = names;
+    momChart.data.datasets[0].data = names.map(n => managers.find(m=>m.name===n)?.achieved || 0);
+    momChart.data.datasets[1].data = names.map(n => prev.perManager?.[n]?.achieved || 0);
+    momChart.update();
+  }
+}
+
 function renderHeaderAndKpis(){
   const ds = dateStats();
   document.getElementById('monthLabel').textContent = ds.monthLabel;
@@ -555,9 +838,11 @@ function renderHeaderAndKpis(){
 
   document.getElementById('kAchievedBar').style.width = Math.min(100,agg.pct)+'%';
   document.getElementById('kRemainingSub').textContent = `${(100-agg.pct).toFixed(1)}% left to close`;
-  document.getElementById('kDailyReq').textContent = `Needs ~${dailyRequired.toFixed(1)}/day to hit target`;
+  document.getElementById('kDailyReq').textContent = `Needs ~${dailyRequired.toFixed(1)}/day · Projected month-end: ${agg.projected} (${agg.projectedPct.toFixed(1)}%)`;
   document.getElementById('kDaysPassedSub').textContent = `of ${ds.totalDays} days (from ${ds.start.toLocaleDateString('en-GB',{day:'2-digit',month:'short'})})`;
   document.getElementById('kDaysLeftSub').textContent = `till ${ds.end.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}`;
+
+  updateMonthArchive(ds, agg);
 
   // dial
   const circumference = 2*Math.PI*27;
@@ -603,6 +888,12 @@ function buildCard(m, rank, badges, opts={}){
   if(badges.fastestGrowing===m.name) chips += `<span class="badge-chip badge-fast">🔥 FASTEST GROWING</span>`;
   if(badges.closest===m.name && badges.closest!==badges.topPerformer) chips += `<span class="badge-chip badge-close">🎯 CLOSEST TO TARGET</span>`;
 
+  if(showTarget && opts.ds){
+    const pace = paceStatus(m.target, m.achieved, opts.ds);
+    if(pace==='ahead') chips += `<span class="pace-chip pace-ahead">🟢 ON PACE</span>`;
+    else if(pace==='behind') chips += `<span class="pace-chip pace-behind">🔴 BEHIND PACE</span>`;
+  }
+
   const statsBlock = showTarget ? `
     <div class="mstats">
       <div class="mstat"><div class="v">${m.target}</div><div class="l">Target</div></div>
@@ -629,8 +920,32 @@ function buildCard(m, rank, badges, opts={}){
       </div>
     </div>
     ${statsBlock}
+    <div class="last-update-tag" data-role="lastUpdate"></div>
   `;
+  updateLastUpdateTag(div, m.name, m.achieved);
   return div;
+}
+
+// tracks per-person achieved value + timestamp in localStorage so we can
+// show "updated Xh ago" without needing any server-side history
+function updateLastUpdateTag(cardEl, name, achieved){
+  const key = `lastAchieved:${name}`;
+  const tsKey = `lastChangeTs:${name}`;
+  const prevVal = lsGet(key);
+  const now = Date.now();
+  if(prevVal === null || prevVal !== achieved){
+    lsSet(key, achieved);
+    lsSet(tsKey, now);
+  }
+  const ts = lsGet(tsKey, now);
+  const mins = Math.max(0, Math.round((now-ts)/60000));
+  let label;
+  if(mins < 1) label = 'Updated just now';
+  else if(mins < 60) label = `Updated ${mins}m ago`;
+  else if(mins < 1440) label = `Updated ${Math.round(mins/60)}h ago`;
+  else label = `Updated ${Math.round(mins/1440)}d ago`;
+  const tag = cardEl.querySelector('[data-role="lastUpdate"]');
+  if(tag) tag.textContent = label;
 }
 
 let firstRenderLB = true;
@@ -655,7 +970,7 @@ function renderLeaderboard(){
 
   board.innerHTML='';
   sorted.forEach((m,i)=>{
-    const card = buildCard(m, i+1, badges);
+    const card = buildCard(m, i+1, badges, {ds: dateStats()});
     board.appendChild(card);
   });
 
@@ -697,6 +1012,7 @@ function renderLeaderboard(){
       flashCard(child);
       bar.classList.add('pulse');
       setTimeout(()=>bar.classList.remove('pulse'), 1000);
+      checkMilestone(m.name, m.target, m.prevAchieved, m.achieved, child);
     }
   });
 
@@ -777,9 +1093,34 @@ function renderTLGroups(){
       countUp(card.querySelector('[data-role="achv"]'), t.achieved);
       if(t.achieved !== t.prevAchieved){
         flashCard(card);
+        checkMilestone(t.name, t.target, t.prevAchieved, t.achieved, card);
       }
     });
     wrap.appendChild(section);
+  });
+}
+
+/* =========================================================================
+   RENDER: TOP TEAM LEADS — org-wide, across all managers
+   ========================================================================= */
+function renderTopTls(){
+  const board = document.getElementById('topTls');
+  if(!board) return;
+  if(tls.length===0){ board.innerHTML=''; return; }
+
+  const filtered = tls.filter(t => t.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  const top5 = [...filtered].sort((a,b)=>b.achieved-a.achieved).slice(0,5);
+
+  if(top5.length===0){
+    board.innerHTML = `<div class="empty-state">No Team Leads match "${searchTerm}"</div>`;
+    return;
+  }
+
+  board.innerHTML = '';
+  top5.forEach((t,i)=>{
+    const card = buildCard(t, i+1, {}, {showTarget:false});
+    board.appendChild(card);
+    countUp(card.querySelector('[data-role="achv"]'), t.achieved);
   });
 }
 
@@ -827,6 +1168,20 @@ function initCharts(){
       animation:{duration:900, easing:'easeOutCubic'} }
   });
 
+  const ctxM = document.getElementById('momChart');
+  if(ctxM){
+    momChart = new Chart(ctxM, {
+      type:'bar',
+      data:{ labels:[], datasets:[
+        { label:'This Month', data:[], backgroundColor:'#ff8c2a', borderRadius:8, maxBarThickness:28 },
+        { label:'Last Month', data:[], backgroundColor:'#4f9dff', borderRadius:8, maxBarThickness:28 }
+      ]},
+      options:{ plugins:{legend:{position:'bottom', labels:{boxWidth:10,padding:14}}},
+        scales:{ x:{grid:{display:false}}, y:{grid:{color:'rgba(255,255,255,.06)'}} },
+        animation:{duration:900, easing:'easeOutCubic'} }
+    });
+  }
+
   chartsReady = true;
 }
 
@@ -841,13 +1196,24 @@ function updateCharts(agg){
   barChart.data.datasets[1].data = sorted.map(m=>m.target);
   barChart.update();
 
-  const totalNow = agg.totalAchieved;
-  window.__lineHistory = window.__lineHistory || [];
-  const label = new Date().toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit'});
-  window.__lineHistory.push({label, value: totalNow});
-  if(window.__lineHistory.length > 20) window.__lineHistory.shift();
-  lineChart.data.labels = window.__lineHistory.map(h=>h.label);
-  lineChart.data.datasets[0].data = window.__lineHistory.map(h=>h.value);
+  updateDailyHistoryChart(agg.totalAchieved);
+}
+
+// keeps one data point per calendar day, persisted in localStorage, so the
+// "Daily Progress Trend" chart actually shows real day-over-day growth
+// instead of resetting every time the page reloads
+function updateDailyHistoryChart(totalAchieved){
+  const todayKey = new Date().toISOString().slice(0,10); // YYYY-MM-DD
+  const history = lsGet('dailyProgressHistory', {});
+  history[todayKey] = totalAchieved;
+  // keep only the last 31 days
+  const keys = Object.keys(history).sort();
+  while(keys.length > 31){ delete history[keys.shift()]; }
+  lsSet('dailyProgressHistory', history);
+
+  const sortedKeys = Object.keys(history).sort();
+  lineChart.data.labels = sortedKeys.map(k=> new Date(k).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}));
+  lineChart.data.datasets[0].data = sortedKeys.map(k=>history[k]);
   lineChart.update();
 }
 
@@ -994,6 +1360,7 @@ async function syncData(){
     const agg = renderHeaderAndKpis();
     renderLeaderboard();
     renderTLGroups();
+    renderTopTls();
     updateCharts(agg);
     document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
   }catch(renderErr){
@@ -1031,15 +1398,103 @@ document.getElementById('searchInput').addEventListener('input', e=>{
   searchTerm = e.target.value;
   renderLeaderboard();
   renderTLGroups();
+  renderTopTls();
 });
 
+let tvRotateTimer = null;
+const TV_PAGES = ['page-leaderboard','page-tls','page-charts','page-mom'];
+let tvPageIndex = 0;
+
+function startTvRotation(){
+  stopTvRotation();
+  document.body.classList.add('tv-rotate');
+  tvPageIndex = 0;
+  showTvPage(tvPageIndex);
+  tvRotateTimer = setInterval(()=>{
+    tvPageIndex = (tvPageIndex+1) % TV_PAGES.length;
+    showTvPage(tvPageIndex);
+  }, CONFIG.TV_ROTATE_MS);
+}
+function stopTvRotation(){
+  clearInterval(tvRotateTimer);
+  document.body.classList.remove('tv-rotate');
+  TV_PAGES.forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.classList.remove('active');
+  });
+}
+function showTvPage(idx){
+  TV_PAGES.forEach((id,i)=>{
+    const el = document.getElementById(id);
+    if(el) el.classList.toggle('active', i===idx);
+  });
+}
+
 document.getElementById('btnTv').addEventListener('click', ()=>{
-  document.body.classList.toggle('tv');
-  if(document.body.classList.contains('tv') && document.documentElement.requestFullscreen){
-    document.documentElement.requestFullscreen().catch(()=>{});
-  } else if(document.exitFullscreen && document.fullscreenElement){
-    document.exitFullscreen().catch(()=>{});
+  const enteringTv = !document.body.classList.contains('tv');
+  if(!enteringTv){
+    // exiting TV mode requires the PIN
+    const entered = prompt('Enter PIN to exit TV mode:');
+    if(entered !== CONFIG.TV_EXIT_PIN){
+      if(entered !== null) alert('Incorrect PIN.');
+      return;
+    }
   }
+  document.body.classList.toggle('tv');
+  if(enteringTv){
+    startTvRotation();
+    if(document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(()=>{});
+  } else {
+    stopTvRotation();
+    if(document.exitFullscreen && document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+  }
+});
+
+document.getElementById('btnSound').addEventListener('click', function(){
+  const enabled = lsGet('soundEnabled', true);
+  lsSet('soundEnabled', !enabled);
+  this.textContent = !enabled ? '🔔' : '🔕';
+  this.title = !enabled ? 'Milestone sound: ON' : 'Milestone sound: OFF';
+  if(!enabled) playDing(); // quick confirmation ding when turning back on
+});
+(function initSoundBtn(){
+  const btn = document.getElementById('btnSound');
+  const enabled = lsGet('soundEnabled', true);
+  btn.textContent = enabled ? '🔔' : '🔕';
+  btn.title = enabled ? 'Milestone sound: ON' : 'Milestone sound: OFF';
+})();
+
+document.getElementById('btnQr').addEventListener('click', ()=>{
+  const url = window.location.href;
+  document.getElementById('qrImage').src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(url)}`;
+  document.getElementById('qrUrlText').textContent = url;
+  document.getElementById('qrBackdrop').classList.add('open');
+});
+document.getElementById('btnCloseQr').addEventListener('click', ()=>{
+  document.getElementById('qrBackdrop').classList.remove('open');
+});
+
+document.getElementById('btnCsv').addEventListener('click', ()=>{
+  const rows = [['Name','Role','Target','Achieved','Remaining','Achievement %','Reports To']];
+  managers.forEach(m=>{
+    const rem = Math.max(0, m.target-m.achieved);
+    const pct = m.target ? (m.achieved/m.target*100).toFixed(1) : '0';
+    rows.push([m.name,'Manager',m.target,m.achieved,rem,pct,'']);
+  });
+  tls.forEach(t=>{
+    const rem = Math.max(0, t.target-t.achieved);
+    const pct = t.target ? (t.achieved/t.target*100).toFixed(1) : '0';
+    rows.push([t.name,'TL',t.target,t.achieved,rem,pct,t.reportsTo||'']);
+  });
+  const csv = rows.map(r => r.map(cell => {
+    const s = String(cell);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
+  }).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `dashboard-snapshot-${new Date().toISOString().slice(0,10)}.csv`;
+  link.click();
 });
 
 document.getElementById('btnPng').addEventListener('click', ()=>{
@@ -1064,10 +1519,86 @@ document.getElementById('btnPdf').addEventListener('click', ()=>{
 });
 
 /* =========================================================================
+   AMBIENT LIFE — keeps the screen feeling alive between sheet updates:
+   a ticking clock + a rotating insights ticker generated from current data
+   ========================================================================= */
+setInterval(()=>{
+  const el = document.getElementById('liveClock');
+  if(el) el.textContent = new Date().toLocaleTimeString('en-GB');
+}, 1000);
+
+const MOTIVATION_LINES = [
+  '🔥 Every call moves the needle — keep dialing.',
+  '💪 Small daily wins compound into big monthly numbers.',
+  '🎯 Focus on today\'s target, not the whole month.',
+  '🚀 Consistency beats intensity — show up every day.',
+  '🏆 Someone is one follow-up away from a milestone right now.'
+];
+
+function buildInsights(){
+  const ds = dateStats();
+  const agg = computeAggregate();
+  const lines = [];
+
+  lines.push(`📅 <b>${ds.daysLeft}</b> day${ds.daysLeft===1?'':'s'} left in ${ds.monthLabel} — <b>${ds.daysPassed}</b> down, <b>${ds.totalDays}</b> total.`);
+  lines.push(`📈 Org-wide at <b>${agg.pct.toFixed(1)}%</b> of target — projected to finish at <b>${agg.projectedPct.toFixed(1)}%</b> at current pace.`);
+
+  if(managers.length){
+    const top = [...managers].sort((a,b)=>b.achieved-a.achieved)[0];
+    lines.push(`🏆 <b>${top.name}</b> is leading the board with <b>${top.achieved}</b> achieved.`);
+
+    const behind = managers.filter(m=>{
+      const p = paceStatus(m.target, m.achieved, ds);
+      return p === 'behind';
+    });
+    if(behind.length){
+      lines.push(`🔴 <b>${behind.length}</b> manager${behind.length>1?'s are':' is'} currently behind pace to hit target.`);
+    } else {
+      lines.push(`🟢 Every manager is currently on pace to hit their target.`);
+    }
+
+    const closest = [...managers].sort((a,b)=>(b.target-b.achieved)-(a.target-a.achieved)).slice(-1)[0];
+    if(closest){
+      const rem = Math.max(0, closest.target-closest.achieved);
+      lines.push(`🎯 <b>${closest.name}</b> is closest to finishing — just <b>${rem}</b> to go.`);
+    }
+  }
+
+  if(tls.length){
+    const topTl = [...tls].sort((a,b)=>b.achieved-a.achieved)[0];
+    lines.push(`🌟 Top Team Lead right now: <b>${topTl.name}</b> with <b>${topTl.achieved}</b> achieved.`);
+  }
+
+  const lastUpdated = document.getElementById('lastUpdated')?.textContent;
+  if(lastUpdated && lastUpdated !== '–'){
+    lines.push(`🔄 Sheet last synced at <b>${lastUpdated}</b> — keep updating whenever you get time, the board reflects it automatically.`);
+  }
+
+  return lines.concat(MOTIVATION_LINES);
+}
+
+let tickerIdx = 0;
+function rotateTicker(){
+  const el = document.getElementById('tickerContent');
+  if(!el) return;
+  const lines = buildInsights();
+  if(lines.length===0) return;
+  tickerIdx = (tickerIdx+1) % lines.length;
+  el.style.opacity = '0';
+  setTimeout(()=>{
+    el.innerHTML = lines[tickerIdx];
+    el.style.opacity = '1';
+  }, 350);
+}
+setInterval(rotateTicker, 4500);
+
+/* =========================================================================
    BOOT
    ========================================================================= */
 syncData().catch(err=>console.warn('initial syncData failed:', err));
 refreshTimer = setInterval(()=>{ syncData().catch(err=>console.warn('syncData failed:', err)); }, CONFIG.REFRESH_MS);
+setTimeout(()=>{ const el=document.getElementById('tickerContent'); if(el){ const lines=buildInsights(); if(lines.length){ el.innerHTML = lines[0]; } } }, 800);
+document.getElementById('liveClock').textContent = new Date().toLocaleTimeString('en-GB');
 
 (window.__libsReady || Promise.resolve()).then(()=>{
   try{
