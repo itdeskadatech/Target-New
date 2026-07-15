@@ -300,6 +300,76 @@ body.tv-rotate .tv-page.active{ display:block; animation: pageIn .5s ease; }
 
 .live-clock{ font-variant-numeric:tabular-nums; color:var(--gold); }
 
+.pill.milestone-flash{ animation: pillMilestoneFlash 1.4s ease; }
+@keyframes pillMilestoneFlash{
+  0%{ box-shadow:0 0 0 rgba(245,196,81,0); border-color:var(--glass-brd); }
+  30%{ box-shadow:0 0 18px rgba(245,196,81,.8); border-color:var(--gold); }
+  100%{ box-shadow:0 0 0 rgba(245,196,81,0); border-color:var(--glass-brd); }
+}
+
+/* ---------- big standalone total-admissions hero ---------- */
+.admissions-hero{
+  display:flex; align-items:center; justify-content:center; gap:26px;
+  background:radial-gradient(ellipse 120% 100% at 50% 0%, rgba(255,178,32,.16), transparent 60%),
+              linear-gradient(160deg, #16130f, #0d0b08);
+  border:1px solid rgba(245,196,81,.4); border-radius:26px; padding:32px 40px; margin-bottom:22px;
+  box-shadow:0 30px 70px rgba(0,0,0,.5), 0 0 0 1px rgba(245,196,81,.08) inset;
+  position:relative; overflow:hidden; text-align:center;
+}
+.admissions-hero::before{
+  content:''; position:absolute; top:-50%; left:-20%; width:60%; height:200%;
+  background:linear-gradient(90deg, transparent, rgba(255,255,255,.10), transparent);
+  animation: admissionsSheen 5s ease-in-out infinite;
+}
+@keyframes admissionsSheen{ 0%{ left:-30%;} 60%,100%{ left:120%;} }
+
+/* rotating gold ring sweeping the whole card border */
+.admissions-hero::after{
+  content:''; position:absolute; inset:-2px; border-radius:inherit; padding:2px;
+  background:conic-gradient(from 0deg, transparent, rgba(255,178,32,.9), transparent 30%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  animation: admissionsRing 6s linear infinite; pointer-events:none;
+}
+@keyframes admissionsRing{ to{ transform:rotate(360deg); } }
+
+.admissions-icon-badge{
+  flex:none; width:86px; height:86px; border-radius:50%; position:relative;
+  display:flex; align-items:center; justify-content:center;
+  background:radial-gradient(circle at 35% 30%, #2a2118, #100d09);
+  border:1px solid rgba(245,196,81,.45);
+}
+.admissions-icon-badge::before{
+  content:''; position:absolute; inset:-8px; border-radius:50%;
+  background:radial-gradient(circle, rgba(255,178,32,.35), transparent 70%);
+  animation: badgeGlowPulse 2.4s ease-in-out infinite;
+}
+@keyframes badgeGlowPulse{ 0%,100%{ opacity:.5; transform:scale(1);} 50%{ opacity:1; transform:scale(1.12);} }
+.admissions-icon{ font-size:40px; position:relative; z-index:1; filter:drop-shadow(0 0 10px rgba(245,196,81,.7)); }
+
+.admissions-text{ position:relative; z-index:1; text-align:left; }
+.admissions-label{
+  font-size:12px; letter-spacing:2px; color:var(--gold); text-transform:uppercase; font-weight:700;
+  display:flex; align-items:center; gap:8px;
+}
+.admissions-label::before, .admissions-label::after{ content:''; flex:1; height:1px; background:linear-gradient(90deg, transparent, rgba(245,196,81,.5)); max-width:24px; }
+.admissions-label::after{ background:linear-gradient(90deg, rgba(245,196,81,.5), transparent); }
+.admissions-value{
+  font-family:'Space Grotesk'; font-weight:800; font-size:clamp(46px,6vw,72px); line-height:1.05; margin-top:6px; letter-spacing:-1px;
+  background:linear-gradient(90deg,var(--white) 10%,var(--gold) 45%,var(--orange) 75%,var(--gold) 100%);
+  background-size:220% auto;
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+  animation: shimmerText 7s linear infinite;
+}
+.admissions-sub{ font-size:12px; color:var(--muted); margin-top:6px; }
+.admissions-hero.milestone-flash{ animation: admissionsHeroFlash 1.6s ease; }
+@keyframes admissionsHeroFlash{
+  0%{ box-shadow:0 30px 70px rgba(0,0,0,.5); }
+  30%{ box-shadow:0 0 60px rgba(245,196,81,.9), 0 30px 70px rgba(0,0,0,.5); }
+  100%{ box-shadow:0 30px 70px rgba(0,0,0,.5); }
+}
+@media(max-width:560px){ .admissions-hero{ flex-direction:column; gap:14px; padding:26px 20px; } .admissions-text{ text-align:center; } }
+
 /* ---------- month-over-month ---------- */
 .mom-summary{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
 @media(max-width:700px){ .mom-summary{ grid-template-columns:1fr; } }
@@ -414,6 +484,16 @@ body.tv h1{ font-size:36px; }
 <div class="syncbar">
   <div>Last updated: <b id="lastUpdated" style="color:var(--white)">–</b> &nbsp;·&nbsp; next sync in <span id="nextSyncCount">5</span>s</div>
   <div class="countdown-track"><div class="countdown-fill" id="countdownFill"></div></div>
+</div>
+
+<!-- ============ TOTAL ADMISSIONS (LIFETIME) ============ -->
+<div class="admissions-hero" id="admissionsHero">
+  <div class="admissions-icon-badge"><span class="admissions-icon">🎓</span></div>
+  <div class="admissions-text">
+    <div class="admissions-label">Total Admissions — All Time</div>
+    <div class="admissions-value" id="admissionsCount">0</div>
+    <div class="admissions-sub" id="admissionsSub">Waiting for "Lifetime Admissions" column in the sheet…</div>
+  </div>
 </div>
 
 <!-- ============ INSIGHTS TICKER ============ -->
@@ -591,6 +671,10 @@ function simulateDemoTick(){
       t.achieved = Math.min(t.target, t.achieved + bump);
     }
   });
+  if(Math.random() < 0.5){
+    demoLifetimeAdmissions += Math.floor(Math.random()*3);
+    lsSet('demoLifetimeAdmissions', demoLifetimeAdmissions);
+  }
 }
 
 /* =========================================================================
@@ -657,8 +741,9 @@ function countUp(el, to, opts={}){
 }
 
 function flashCard(el){
-  el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
-  setTimeout(()=>el.classList.remove('flash'), 900);
+  el.classList.remove('flash','glow'); void el.offsetWidth;
+  el.classList.add('flash','glow');
+  setTimeout(()=>el.classList.remove('flash','glow'), 1100);
 }
 
 /* =========================================================================
@@ -729,6 +814,65 @@ function playDing(){
       osc.start(now + i*0.12); osc.stop(now + i*0.12 + 0.4);
     });
   }catch(e){ /* audio blocked — ignore */ }
+}
+
+// louder, longer, more attention-grabbing than the regular milestone ding —
+// reserved specifically for every 100th total admission
+function playAdmissionsFanfare(){
+  if(lsGet('soundEnabled', true) === false) return;
+  try{
+    __audioCtx = __audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = __audioCtx;
+    const now = ctx.currentTime;
+    // fast retro "achievement unlocked" style ascending arpeggio — deliberately
+    // different timbre (square wave, quicker notes) from the per-card ding
+    [523.25, 659.25, 783.99, 1046.50, 1318.51].forEach((freq, i)=>{
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'square'; osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, now + i*0.09);
+      gain.gain.linearRampToValueAtTime(0.22, now + i*0.09 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i*0.09 + 0.4);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(now + i*0.09); osc.stop(now + i*0.09 + 0.45);
+    });
+    // low sustained horn note underneath for weight
+    const horn = ctx.createOscillator();
+    const hornGain = ctx.createGain();
+    horn.type = 'sawtooth'; horn.frequency.value = 130.81;
+    hornGain.gain.setValueAtTime(0, now);
+    hornGain.gain.linearRampToValueAtTime(0.12, now + 0.05);
+    hornGain.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+    horn.connect(hornGain); hornGain.connect(ctx.destination);
+    horn.start(now); horn.stop(now + 0.95);
+  }catch(e){ /* audio blocked — ignore */ }
+}
+
+// tracks the lifetime total-admissions count (sourced from your sheet's
+// "Lifetime Admissions" column) and fires a distinct sound every time it
+// crosses a multiple of 100 (persisted so it survives reloads)
+let lifetimeAdmissionsFromSheet = null;
+let demoLifetimeAdmissions = lsGet('demoLifetimeAdmissions', 3200);
+let lastKnownTotalAdmissions = lsGet('lastKnownTotalAdmissions', null);
+function updateTotalAdmissions(total){
+  const el = document.getElementById('admissionsCount');
+  if(el) countUp(el, total);
+
+  if(lastKnownTotalAdmissions !== null){
+    const prevHundreds = Math.floor(lastKnownTotalAdmissions/100);
+    const newHundreds = Math.floor(total/100);
+    if(newHundreds > prevHundreds && total > 0){
+      playAdmissionsFanfare();
+      const hero = document.getElementById('admissionsHero');
+      if(hero){
+        hero.classList.remove('milestone-flash'); void hero.offsetWidth;
+        hero.classList.add('milestone-flash');
+        fireConfetti(hero);
+      }
+    }
+  }
+  lastKnownTotalAdmissions = total;
+  lsSet('lastKnownTotalAdmissions', total);
 }
 
 /* =========================================================================
@@ -843,6 +987,8 @@ function renderHeaderAndKpis(){
   document.getElementById('kDaysLeftSub').textContent = `till ${ds.end.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}`;
 
   updateMonthArchive(ds, agg);
+  const totalAdmissionsValue = lifetimeAdmissionsFromSheet !== null ? lifetimeAdmissionsFromSheet : demoLifetimeAdmissions;
+  updateTotalAdmissions(totalAdmissionsValue);
 
   // dial
   const circumference = 2*Math.PI*27;
@@ -1249,14 +1395,24 @@ function rowsToManagers(rows){
   const targetIdx = header.findIndex(c=>c.includes('target'));
   const achievedIdx = header.findIndex(c=>c.includes('achiev'));
   const reportsIdx = header.findIndex(c=>c.includes('report'));
+  const lifetimeIdx = header.findIndex(c=>c.includes('lifetime'));
   if(nameIdx<0 || targetIdx<0 || achievedIdx<0) throw new Error('columns-not-found');
 
-  return rows.slice(1).map(r=>({
+  const people = rows.slice(1).map(r=>({
     name: (r[nameIdx]||'').trim(),
     target: Number((r[targetIdx]||'0').replace(/,/g,'')) || 0,
     achieved: Number((r[achievedIdx]||'0').replace(/,/g,'')) || 0,
     reportsTo: reportsIdx>=0 ? (r[reportsIdx]||'').trim() : ''
   })).filter(r=>r.name && !/^total$/i.test(r.name));
+
+  let lifetimeAdmissions = null;
+  if(lifetimeIdx>=0){
+    for(const r of rows.slice(1)){
+      const v = Number((r[lifetimeIdx]||'').replace(/,/g,''));
+      if(r[lifetimeIdx] && !isNaN(v) && v>0){ lifetimeAdmissions = v; break; }
+    }
+  }
+  return { people, lifetimeAdmissions };
 }
 
 async function fetchSheetData(){
@@ -1266,19 +1422,28 @@ async function fetchSheetData(){
     if(!res.ok) throw new Error('fetch-failed');
     const data = await res.json();
     if(!Array.isArray(data) || data.length===0) throw new Error('parse-failed');
-    const keys = Object.keys(data[0]).map(k=>k.toLowerCase());
     const findKey = (needle) => Object.keys(data[0]).find(k=>k.toLowerCase().includes(needle));
     const nameKey = findKey('manager') || findKey('name');
     const targetKey = findKey('target');
     const achievedKey = findKey('achiev');
     const reportsKey = findKey('report');
+    const lifetimeKey = findKey('lifetime');
     if(!nameKey || !targetKey || !achievedKey) throw new Error('columns-not-found');
-    return data.map(r=>({
+    const people = data.map(r=>({
       name: String(r[nameKey]||'').trim(),
       target: Number(r[targetKey])||0,
       achieved: Number(r[achievedKey])||0,
       reportsTo: reportsKey ? String(r[reportsKey]||'').trim() : ''
     })).filter(r=>r.name && !/^total$/i.test(r.name));
+
+    let lifetimeAdmissions = null;
+    if(lifetimeKey){
+      for(const r of data){
+        const v = Number(r[lifetimeKey]);
+        if(r[lifetimeKey] !== '' && r[lifetimeKey] != null && !isNaN(v) && v>0){ lifetimeAdmissions = v; break; }
+      }
+    }
+    return { people, lifetimeAdmissions };
   }
 
   if(CONFIG.SHEET_MODE === 'csv'){
@@ -1305,9 +1470,10 @@ async function fetchSheetData(){
   const targetIdx = cols.findIndex(c=>c.includes('target'));
   const achievedIdx = cols.findIndex(c=>c.includes('achiev'));
   const reportsIdx = cols.findIndex(c=>c.includes('report'));
+  const lifetimeIdx = cols.findIndex(c=>c.includes('lifetime'));
   if(nameIdx<0 || targetIdx<0 || achievedIdx<0) throw new Error('columns-not-found');
 
-  return json.table.rows.map(r=>{
+  const people = json.table.rows.map(r=>{
     const cells = r.c;
     return {
       name: cells[nameIdx]?.v,
@@ -1316,6 +1482,15 @@ async function fetchSheetData(){
       reportsTo: reportsIdx>=0 ? (cells[reportsIdx]?.v || '') : ''
     };
   }).filter(r=>r.name);
+
+  let lifetimeAdmissions = null;
+  if(lifetimeIdx>=0){
+    for(const r of json.table.rows){
+      const v = r.c[lifetimeIdx]?.v;
+      if(v !== null && v !== undefined && Number(v)>0){ lifetimeAdmissions = Number(v); break; }
+    }
+  }
+  return { people, lifetimeAdmissions };
 }
 
 async function syncData(){
@@ -1324,7 +1499,7 @@ async function syncData(){
     : !!CONFIG.SHEET_ID;
   try{
     if(sheetConfigured){
-      const rows = await fetchSheetData();
+      const { people: rows, lifetimeAdmissions: fetchedLifetime } = await fetchSheetData();
       const managerRows = rows.filter(r=>!r.reportsTo);
       const tlRows = rows.filter(r=>r.reportsTo);
       managers = managerRows.map(r=>{
@@ -1342,12 +1517,19 @@ async function syncData(){
           prevAchieved: existing ? existing.achieved : r.achieved
         };
       });
+      if(fetchedLifetime !== null){
+        lifetimeAdmissionsFromSheet = fetchedLifetime;
+        document.getElementById('admissionsSub').textContent = 'Live from your sheet\'s "Lifetime Admissions" column';
+      } else {
+        document.getElementById('admissionsSub').textContent = 'Add a "Lifetime Admissions" column to your sheet (one filled cell is enough) to make this live';
+      }
       usingLiveSheet = true;
       document.getElementById('liveLabel').textContent = 'LIVE · GOOGLE SHEET';
     } else {
       simulateDemoTick();
       usingLiveSheet = false;
       document.getElementById('liveLabel').textContent = 'LIVE · DEMO DATA';
+      document.getElementById('admissionsSub').textContent = 'Demo mode — connect your sheet to show a real lifetime total';
     }
   }catch(err){
     console.warn('Sheet sync failed, falling back to demo tick:', err.message);
