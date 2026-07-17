@@ -183,7 +183,7 @@ body{ padding: 28px clamp(14px,3vw,40px) 60px; }
 }
 .mcard{
   position:relative; background:var(--glass); border:1px solid var(--glass-brd); backdrop-filter:blur(18px);
-  border-radius:var(--radius); padding:18px; box-shadow:var(--shadow);
+  border-radius:var(--radius); padding:18px; box-shadow:var(--shadow); overflow:hidden;
   transition: transform .5s cubic-bezier(.2,.8,.2,1), box-shadow .4s, border-color .4s;
 }
 .mcard.rank-1{ border-color:rgba(245,196,81,.55); box-shadow:0 0 0 1px rgba(245,196,81,.25), 0 20px 50px rgba(245,196,81,.15);}
@@ -193,6 +193,21 @@ body{ padding: 28px clamp(14px,3vw,40px) 60px; }
   30%{ box-shadow:0 0 0 6px rgba(255,106,26,.25), var(--shadow); }
   100%{ box-shadow:var(--shadow); }
 }
+
+/* premium light sweep — like light catching a metal card. Purely
+   decorative on a pseudo-element (never transform on the card itself),
+   so it can never fight the FLIP reorder animation. Staggered per-card
+   via --sweep-delay so cards catch the light at different moments
+   instead of all sweeping in sync. */
+.mcard::before{
+  content:''; position:absolute; top:0; left:-60%; width:35%; height:100%;
+  background:linear-gradient(115deg, transparent, rgba(255,255,255,.09), rgba(255,196,110,.12), transparent);
+  animation: cardSweep 8s ease-in-out infinite;
+  animation-delay: var(--sweep-delay, 0s);
+  pointer-events:none; z-index:0;
+}
+.mcard > *{ position:relative; z-index:1; }
+@keyframes cardSweep{ 0%,4%{ left:-60%;} 32%,100%{ left:130%;} }
 .mcard-top{ display:flex; align-items:center; gap:12px; }
 .rank-badge{
   width:38px; height:38px; border-radius:12px; display:flex; align-items:center; justify-content:center;
@@ -212,6 +227,7 @@ body{ padding: 28px clamp(14px,3vw,40px) 60px; }
 .badge-top{ background:rgba(245,196,81,.18); color:var(--gold); border:1px solid rgba(245,196,81,.4); }
 .badge-fast{ background:rgba(255,84,112,.15); color:#ff8fa3; border:1px solid rgba(255,84,112,.35); }
 .badge-close{ background:rgba(79,157,255,.15); color:#8bbcff; border:1px solid rgba(79,157,255,.35); }
+.badge-weekly{ background:rgba(197,139,255,.15); color:#c58bff; border:1px solid rgba(197,139,255,.4); }
 
 .mstats{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:16px; }
 .mstat{ text-align:center; background:rgba(255,255,255,.03); border-radius:12px; padding:8px 4px; }
@@ -273,7 +289,10 @@ body.tv-rotate .tv-page.active{ display:block; animation: pageIn .5s ease; }
 .pace-chip{ font-size:9.5px; padding:2px 7px; border-radius:999px; font-weight:700; letter-spacing:.3px; margin-left:6px; }
 .pace-ahead{ background:rgba(52,211,153,.15); color:var(--green); border:1px solid rgba(52,211,153,.4); }
 .pace-behind{ background:rgba(255,84,112,.15); color:#ff8fa3; border:1px solid rgba(255,84,112,.4); }
+.pace-risk{ background:rgba(148,163,184,.15); color:#b8c2d1; border:1px solid rgba(148,163,184,.4); }
 .last-update-tag{ font-size:10px; color:var(--muted); margin-top:10px; text-align:right; }
+.daily-needed{ font-size:11.5px; color:var(--muted); margin-top:10px; text-align:center; }
+.daily-needed b{ color:var(--orange2); font-family:'Space Grotesk'; }
 
 #confettiCanvas{ position:fixed; inset:0; pointer-events:none; z-index:80; }
 
@@ -309,10 +328,11 @@ body.tv-rotate .tv-page.active{ display:block; animation: pageIn .5s ease; }
 
 /* ---------- big standalone total-admissions hero ---------- */
 .admissions-hero{
-  display:flex; align-items:center; justify-content:center; gap:26px;
+  display:flex; align-items:center; justify-content:center; gap:30px;
   background:radial-gradient(ellipse 120% 100% at 50% 0%, rgba(255,178,32,.16), transparent 60%),
               linear-gradient(160deg, #16130f, #0d0b08);
-  border:1px solid rgba(245,196,81,.4); border-radius:26px; padding:32px 40px; margin-bottom:22px;
+  border:1px solid rgba(245,196,81,.4); border-radius:26px; padding:28px 40px; margin:0 auto 22px;
+  max-width:820px;
   box-shadow:0 30px 70px rgba(0,0,0,.5), 0 0 0 1px rgba(245,196,81,.08) inset;
   position:relative; overflow:hidden; text-align:center;
 }
@@ -347,7 +367,7 @@ body.tv-rotate .tv-page.active{ display:block; animation: pageIn .5s ease; }
 @keyframes badgeGlowPulse{ 0%,100%{ opacity:.5; transform:scale(1);} 50%{ opacity:1; transform:scale(1.12);} }
 .admissions-icon{ font-size:40px; position:relative; z-index:1; filter:drop-shadow(0 0 10px rgba(245,196,81,.7)); }
 
-.admissions-text{ position:relative; z-index:1; text-align:left; }
+.admissions-text{ position:relative; z-index:1; text-align:center; }
 .admissions-label{
   font-size:12px; letter-spacing:2px; color:var(--gold); text-transform:uppercase; font-weight:700;
   display:flex; align-items:center; gap:8px;
@@ -361,7 +381,6 @@ body.tv-rotate .tv-page.active{ display:block; animation: pageIn .5s ease; }
   -webkit-background-clip:text; background-clip:text; color:transparent;
   animation: shimmerText 7s linear infinite;
 }
-.admissions-sub{ font-size:12px; color:var(--muted); margin-top:6px; }
 .admissions-hero.milestone-flash{ animation: admissionsHeroFlash 1.6s ease; }
 @keyframes admissionsHeroFlash{
   0%{ box-shadow:0 30px 70px rgba(0,0,0,.5); }
@@ -492,7 +511,6 @@ body.tv h1{ font-size:36px; }
   <div class="admissions-text">
     <div class="admissions-label">Total Admissions — All Time</div>
     <div class="admissions-value" id="admissionsCount">0</div>
-    <div class="admissions-sub" id="admissionsSub">Waiting for "Lifetime Admissions" column in the sheet…</div>
   </div>
 </div>
 
@@ -614,7 +632,8 @@ const CONFIG = {
   SHEET_NAME: 'Sheet1',
   REFRESH_MS: 5000,
   TV_ROTATE_MS: 9000,     // how long each TV-mode page stays visible
-  TV_EXIT_PIN: '1234'     // change this to whatever PIN you want to require to exit TV mode
+  TV_EXIT_PIN: '1234',    // change this to whatever PIN you want to require to exit TV mode
+  HEALTH_CHECK_MINUTES: 15 // how long the sheet must be unreachable before an alert email is sent
 };
 
 /* =========================================================================
@@ -715,6 +734,18 @@ function paceStatus(target, achieved, ds){
   if(!target || ds.daysPassed<=0) return null;
   const requiredRate = target/ds.totalDays;
   const actualRate = achieved/ds.daysPassed;
+  const remaining = Math.max(0, target-achieved);
+
+  // "risk" is a stronger, more specific signal than "behind": it means even
+  // DOUBLING their current average daily rate for every remaining day would
+  // not be enough to reach target — not just under-pace, but out of reach
+  // at any realistic acceleration.
+  if(ds.daysLeft > 0 && remaining > 0){
+    const maxPossibleAtDoublePace = ds.daysLeft * actualRate * 2;
+    if(maxPossibleAtDoublePace < remaining) return 'risk';
+  }
+  if(ds.daysLeft <= 0 && remaining > 0) return 'risk'; // month over, target unmet
+
   return actualRate >= requiredRate*0.92 ? 'ahead' : 'behind';
 }
 
@@ -854,6 +885,34 @@ function playAdmissionsFanfare(){
 let lifetimeAdmissionsFromSheet = null;
 let demoLifetimeAdmissions = lsGet('demoLifetimeAdmissions', 3200);
 let lastKnownTotalAdmissions = lsGet('lastKnownTotalAdmissions', null);
+/* =========================================================================
+   HEALTH CHECK — sends an email (via your Apps Script) if the sheet sync
+   has been failing continuously for longer than HEALTH_CHECK_MINUTES,
+   so you find out before someone notices the TV is stuck.
+   ========================================================================= */
+let syncFailStartTime = null;
+let healthAlertSent = false;
+
+function onSyncSuccess(){
+  syncFailStartTime = null;
+  healthAlertSent = false;
+}
+
+function onSyncFailure(){
+  if(syncFailStartTime === null) syncFailStartTime = Date.now();
+  const minutesDown = (Date.now() - syncFailStartTime) / 60000;
+  if(minutesDown >= CONFIG.HEALTH_CHECK_MINUTES && !healthAlertSent){
+    healthAlertSent = true; // only one email per outage, not one every 5 seconds
+    sendHealthAlertEmail(Math.round(minutesDown));
+  }
+}
+
+function sendHealthAlertEmail(minutesDown){
+  if(CONFIG.SHEET_MODE !== 'json' || !CONFIG.JSON_URL) return; // needs the Apps Script endpoint
+  const url = `${CONFIG.JSON_URL}${CONFIG.JSON_URL.includes('?')?'&':'?'}action=healthAlert&minutes=${minutesDown}&_ts=${Date.now()}`;
+  fetch(url, {cache:'no-store'}).catch(()=>{ /* best-effort — if this fails too, nothing more we can do client-side */ });
+}
+
 function updateTotalAdmissions(total){
   const el = document.getElementById('admissionsCount');
   if(el) countUp(el, total);
@@ -1007,6 +1066,39 @@ function initials(name){
   return name.split(' ').map(s=>s[0]).join('').slice(0,2).toUpperCase();
 }
 
+// tracks each manager's Achieved value at the start of the current week
+// (Monday) so we can measure this week's growth separately from the
+// monthly Top Performer badge
+function getWeeklyMVP(){
+  const now = new Date();
+  const day = now.getDay(); // 0=Sun..6=Sat
+  const diffToMonday = (day===0 ? -6 : 1-day);
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate()+diffToMonday);
+  const weekKey = monday.toISOString().slice(0,10);
+
+  let store = lsGet('weeklyBaseline', null);
+  if(!store || store.weekStart !== weekKey){
+    store = { weekStart: weekKey, baselines: {} };
+    managers.forEach(m=>{ store.baselines[m.name] = m.achieved; });
+    lsSet('weeklyBaseline', store);
+  } else {
+    // make sure any newly-appearing manager gets a baseline too
+    let changed = false;
+    managers.forEach(m=>{
+      if(!(m.name in store.baselines)){ store.baselines[m.name] = m.achieved; changed = true; }
+    });
+    if(changed) lsSet('weeklyBaseline', store);
+  }
+
+  let best = null, bestGrowth = 0;
+  managers.forEach(m=>{
+    const baseline = store.baselines[m.name] ?? m.achieved;
+    const growth = m.achieved - baseline;
+    if(growth > bestGrowth){ bestGrowth = growth; best = m.name; }
+  });
+  return best;
+}
+
 function computeBadges(){
   if(managers.length===0) return {};
   const sorted = [...managers].sort((a,b)=>b.achieved-a.achieved);
@@ -1015,7 +1107,8 @@ function computeBadges(){
   const fastestGrowing = (fastest && (fastest.achieved-fastest.prevAchieved) > 0) ? fastest.name : null;
   const closest = [...managers].sort((a,b)=>(b.achieved/b.target)-(a.achieved/a.target))[0];
   const closestName = closest && closest.name !== topPerformer ? closest.name : (closest ? closest.name : null);
-  return { topPerformer, fastestGrowing, closest: closest ? closest.name : null };
+  const weeklyMVP = getWeeklyMVP();
+  return { topPerformer, fastestGrowing, closest: closest ? closest.name : null, weeklyMVP };
 }
 
 function buildCard(m, rank, badges, opts={}){
@@ -1033,12 +1126,17 @@ function buildCard(m, rank, badges, opts={}){
   if(badges.topPerformer===m.name) chips += `<span class="badge-chip badge-top">🏆 TOP PERFORMER</span>`;
   if(badges.fastestGrowing===m.name) chips += `<span class="badge-chip badge-fast">🔥 FASTEST GROWING</span>`;
   if(badges.closest===m.name && badges.closest!==badges.topPerformer) chips += `<span class="badge-chip badge-close">🎯 CLOSEST TO TARGET</span>`;
+  if(badges.weeklyMVP===m.name) chips += `<span class="badge-chip badge-weekly">🌟 WEEKLY MVP</span>`;
 
   if(showTarget && opts.ds){
     const pace = paceStatus(m.target, m.achieved, opts.ds);
     if(pace==='ahead') chips += `<span class="pace-chip pace-ahead">🟢 ON PACE</span>`;
+    else if(pace==='risk') chips += `<span class="pace-chip pace-risk">◌ TARGET AT RISK</span>`;
     else if(pace==='behind') chips += `<span class="pace-chip pace-behind">🔴 BEHIND PACE</span>`;
   }
+
+  const dailyNeeded = (showTarget && opts.ds && opts.ds.daysLeft > 0)
+    ? (remaining / opts.ds.daysLeft) : null;
 
   const statsBlock = showTarget ? `
     <div class="mstats">
@@ -1050,6 +1148,7 @@ function buildCard(m, rank, badges, opts={}){
       <div class="progress-label"><span>Target Progress</span><b data-role="pct">${pct.toFixed(1)}%</b></div>
       <div class="progress-track"><div class="progress-fill" data-role="bar" style="width:0%"></div></div>
     </div>
+    ${dailyNeeded !== null ? `<div class="daily-needed">📅 Needs ~<b data-role="dailyNeeded">${dailyNeeded.toFixed(1)}</b>/day to hit target</div>` : ''}
   ` : `
     <div class="mstats achieved-only">
       <div class="mstat achv wide"><div class="v" data-role="achv">${m.achieved}</div><div class="l">Achieved</div></div>
@@ -1069,6 +1168,7 @@ function buildCard(m, rank, badges, opts={}){
     <div class="last-update-tag" data-role="lastUpdate"></div>
   `;
   updateLastUpdateTag(div, m.name, m.achieved);
+  div.style.setProperty('--sweep-delay', `${(rank % 7) * 1.1}s`);
   return div;
 }
 
@@ -1519,23 +1619,21 @@ async function syncData(){
       });
       if(fetchedLifetime !== null){
         lifetimeAdmissionsFromSheet = fetchedLifetime;
-        document.getElementById('admissionsSub').textContent = 'Live from your sheet\'s "Lifetime Admissions" column';
-      } else {
-        document.getElementById('admissionsSub').textContent = 'Add a "Lifetime Admissions" column to your sheet (one filled cell is enough) to make this live';
       }
       usingLiveSheet = true;
       document.getElementById('liveLabel').textContent = 'LIVE · GOOGLE SHEET';
+      onSyncSuccess();
     } else {
       simulateDemoTick();
       usingLiveSheet = false;
       document.getElementById('liveLabel').textContent = 'LIVE · DEMO DATA';
-      document.getElementById('admissionsSub').textContent = 'Demo mode — connect your sheet to show a real lifetime total';
     }
   }catch(err){
     console.warn('Sheet sync failed, falling back to demo tick:', err.message);
     simulateDemoTick();
     usingLiveSheet = false;
     document.getElementById('liveLabel').textContent = 'LIVE · DEMO (SHEET UNREACHABLE)';
+    if(sheetConfigured) onSyncFailure();
   }
 
   try{
@@ -1729,11 +1827,11 @@ function buildInsights(){
     const top = [...managers].sort((a,b)=>b.achieved-a.achieved)[0];
     lines.push(`🏆 <b>${top.name}</b> is leading the board with <b>${top.achieved}</b> achieved.`);
 
-    const behind = managers.filter(m=>{
-      const p = paceStatus(m.target, m.achieved, ds);
-      return p === 'behind';
-    });
-    if(behind.length){
+    const behind = managers.filter(m=> paceStatus(m.target, m.achieved, ds) === 'behind');
+    const atRisk = managers.filter(m=> paceStatus(m.target, m.achieved, ds) === 'risk');
+    if(atRisk.length){
+      lines.push(`◌ <b>${atRisk.length}</b> manager${atRisk.length>1?'s have':' has'} a target that's mathematically out of reach at current pace — may be worth revisiting.`);
+    } else if(behind.length){
       lines.push(`🔴 <b>${behind.length}</b> manager${behind.length>1?'s are':' is'} currently behind pace to hit target.`);
     } else {
       lines.push(`🟢 Every manager is currently on pace to hit their target.`);
