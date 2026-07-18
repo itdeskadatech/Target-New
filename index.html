@@ -239,7 +239,7 @@ body{ padding: 28px clamp(14px,3vw,40px) 60px; }
 .progress-wrap{ margin-top:14px; }
 .progress-label{ display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-bottom:6px;}
 .progress-label b{ color:var(--orange2); font-family:'Space Grotesk'; }
-.progress-track{ height:9px; border-radius:8px; background:rgba(255,255,255,.06); overflow:hidden; }
+.progress-track{ height:9px; border-radius:8px; background:rgba(255,255,255,.06); overflow:hidden; position:relative; }
 .progress-fill{ height:100%; border-radius:8px; background:linear-gradient(90deg,var(--orange),var(--gold)); width:0%; transition:width 1.1s cubic-bezier(.4,0,.2,1); position:relative; }
 .progress-fill.pulse{ box-shadow:0 0 16px rgba(255,178,32,.8); }
 .progress-fill::after{ content:''; position:absolute; inset:0; background:linear-gradient(90deg,transparent,rgba(255,255,255,.4),transparent); width:40px; animation:shine 2.4s infinite; }
@@ -293,6 +293,19 @@ body.tv-rotate .tv-page.active{ display:block; animation: pageIn .5s ease; }
 .last-update-tag{ font-size:10px; color:var(--muted); margin-top:10px; text-align:right; }
 .daily-needed{ font-size:11.5px; color:var(--muted); margin-top:10px; text-align:center; }
 .daily-needed b{ color:var(--orange2); font-family:'Space Grotesk'; }
+
+.sparkline-wrap{ margin-top:12px; display:flex; align-items:center; gap:10px; background:rgba(255,255,255,.03); border-radius:10px; padding:8px 10px; }
+.sparkline-chart{ flex:1; height:28px; }
+.sparkline-svg{ width:100%; height:100%; display:block; }
+.sparkline-trend{ font-size:10.5px; font-weight:700; white-space:nowrap; flex:none; }
+.sparkline-trend.trend-up{ color:var(--green); }
+.sparkline-trend.trend-down{ color:#ff8fa3; }
+.sparkline-trend.trend-flat{ color:var(--muted); }
+
+.consistency-tag{ font-size:11px; font-weight:600; margin-top:8px; text-align:center; }
+.consistency-tag.consistency-high{ color:var(--green); }
+.consistency-tag.consistency-mid{ color:var(--orange2); }
+.consistency-tag.consistency-low{ color:var(--muted); }
 
 #confettiCanvas{ position:fixed; inset:0; pointer-events:none; z-index:80; }
 
@@ -580,6 +593,14 @@ body.tv h1{ font-size:36px; }
     <h2>🌟 Top Team Leads <span class="tag">Org-wide</span></h2>
   </div>
   <div class="leaderboard" id="topTls"></div>
+</div>
+
+<!-- ============ WEEKLY TARGETS (only shown if the sheet has a "Weekly" column) ============ -->
+<div class="tv-page" id="page-weekly" style="display:none;">
+  <div class="section-head">
+    <h2>📅 Weekly Targets <span class="tag">Resets Monday</span></h2>
+  </div>
+  <div class="leaderboard" id="weeklyTargets"></div>
 </div>
 
 <!-- ============ CHARTS ============ -->
@@ -1069,7 +1090,7 @@ function initials(name){
 // tracks each manager's Achieved value at the start of the current week
 // (Monday) so we can measure this week's growth separately from the
 // monthly Top Performer badge
-function getWeeklyMVP(){
+function getWeeklyBaselineStore(){
   const now = new Date();
   const day = now.getDay(); // 0=Sun..6=Sat
   const diffToMonday = (day===0 ? -6 : 1-day);
@@ -1082,14 +1103,23 @@ function getWeeklyMVP(){
     managers.forEach(m=>{ store.baselines[m.name] = m.achieved; });
     lsSet('weeklyBaseline', store);
   } else {
-    // make sure any newly-appearing manager gets a baseline too
     let changed = false;
     managers.forEach(m=>{
       if(!(m.name in store.baselines)){ store.baselines[m.name] = m.achieved; changed = true; }
     });
     if(changed) lsSet('weeklyBaseline', store);
   }
+  return store;
+}
 
+function getWeeklyAchieved(name, achieved){
+  const store = getWeeklyBaselineStore();
+  const baseline = store.baselines[name] ?? achieved;
+  return Math.max(0, achieved - baseline);
+}
+
+function getWeeklyMVP(){
+  const store = getWeeklyBaselineStore();
   let best = null, bestGrowth = 0;
   managers.forEach(m=>{
     const baseline = store.baselines[m.name] ?? m.achieved;
@@ -1138,6 +1168,36 @@ function buildCard(m, rank, badges, opts={}){
   const dailyNeeded = (showTarget && opts.ds && opts.ds.daysLeft > 0)
     ? (remaining / opts.ds.daysLeft) : null;
 
+  let sparklineBlock = '';
+  let consistencyBlock = '';
+  if(showTarget && !opts.hideSparkline){
+    const monthStart = opts.ds ? opts.ds.start.toISOString().slice(0,10) : null;
+    let points = getManagerSparkline(m.name, 31);
+    if(monthStart) points = points.filter(p => p.date >= monthStart);
+
+    const svg = buildSparklineSVG(points);
+    if(svg){
+      const trend = computeTrend(points);
+      const trendIcon = trend==='up' ? '📈' : trend==='down' ? '📉' : '➡️';
+      const trendLabel = trend==='up' ? 'Trending up' : trend==='down' ? 'Trending down' : 'Steady';
+      const trendClass = trend==='up' ? 'trend-up' : trend==='down' ? 'trend-down' : 'trend-flat';
+      sparklineBlock = `
+        <div class="sparkline-wrap">
+          <div class="sparkline-chart">${svg}</div>
+          <div class="sparkline-trend ${trendClass}">${trendIcon} ${trendLabel}</div>
+        </div>`;
+    }
+
+    if(points.length >= 2){
+      let activeDays = 0;
+      for(let i=1;i<points.length;i++){ if(points[i].value > points[i-1].value) activeDays++; }
+      const totalTracked = points.length - 1;
+      const consistencyPct = totalTracked>0 ? (activeDays/totalTracked*100) : 0;
+      const consistencyClass = consistencyPct >= 60 ? 'consistency-high' : consistencyPct >= 30 ? 'consistency-mid' : 'consistency-low';
+      consistencyBlock = `<div class="consistency-tag ${consistencyClass}">🔥 Active ${activeDays}/${totalTracked} day${totalTracked===1?'':'s'} tracked</div>`;
+    }
+  }
+
   const statsBlock = showTarget ? `
     <div class="mstats">
       <div class="mstat"><div class="v">${m.target}</div><div class="l">Target</div></div>
@@ -1149,6 +1209,8 @@ function buildCard(m, rank, badges, opts={}){
       <div class="progress-track"><div class="progress-fill" data-role="bar" style="width:0%"></div></div>
     </div>
     ${dailyNeeded !== null ? `<div class="daily-needed">📅 Needs ~<b data-role="dailyNeeded">${dailyNeeded.toFixed(1)}</b>/day to hit target</div>` : ''}
+    ${sparklineBlock}
+    ${consistencyBlock}
   ` : `
     <div class="mstats achieved-only">
       <div class="mstat achv wide"><div class="v" data-role="achv">${m.achieved}</div><div class="l">Achieved</div></div>
@@ -1371,6 +1433,51 @@ function renderTopTls(){
 }
 
 /* =========================================================================
+   RENDER: WEEKLY TARGETS — entirely hidden unless at least one manager
+   has a "Weekly" column value in the sheet. Weekly achieved is measured
+   from the same Monday baseline used for the Weekly MVP badge.
+   ========================================================================= */
+function renderWeeklyTargets(){
+  const page = document.getElementById('page-weekly');
+  const board = document.getElementById('weeklyTargets');
+  if(!page || !board) return;
+
+  const withWeeklyTarget = managers.filter(m => m.weeklyTarget);
+  if(withWeeklyTarget.length === 0){
+    page.style.display = 'none';
+    board.innerHTML = '';
+    return;
+  }
+  page.style.display = '';
+
+  const filtered = withWeeklyTarget.filter(m => m.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  const sorted = [...filtered].sort((a,b)=>{
+    const aw = getWeeklyAchieved(a.name, a.achieved), bw = getWeeklyAchieved(b.name, b.achieved);
+    return bw - aw;
+  });
+
+  if(sorted.length===0){
+    board.innerHTML = `<div class="empty-state">No matches for "${searchTerm}"</div>`;
+    return;
+  }
+
+  board.innerHTML = '';
+  sorted.forEach((m,i)=>{
+    const weeklyAchieved = getWeeklyAchieved(m.name, m.achieved);
+    const pseudoManager = { name: m.name, target: m.weeklyTarget, achieved: weeklyAchieved, prevAchieved: weeklyAchieved };
+    const card = buildCard(pseudoManager, i+1, {}, {hideSparkline:true});
+    board.appendChild(card);
+    countUp(card.querySelector('[data-role="achv"]'), weeklyAchieved);
+    const remaining = Math.max(0, m.weeklyTarget - weeklyAchieved);
+    countUp(card.querySelector('[data-role="rem"]'), remaining);
+    const pct = m.weeklyTarget ? (weeklyAchieved/m.weeklyTarget*100) : 0;
+    countUp(card.querySelector('[data-role="pct"]'), pct, {decimals:1, suffix:'%'});
+    const bar = card.querySelector('[data-role="bar"]');
+    if(bar) requestAnimationFrame(()=> bar.style.width = Math.min(100,pct)+'%');
+  });
+}
+
+/* =========================================================================
    CHARTS
    ========================================================================= */
 let doughnutChart, barChart, lineChart, chartsReady = false;
@@ -1464,6 +1571,63 @@ function updateDailyHistoryChart(totalAchieved){
 }
 
 /* =========================================================================
+   PER-MANAGER DAILY HISTORY — powers the mini trend sparkline on each card
+   ========================================================================= */
+function recordManagerDailyHistory(){
+  const todayKey = new Date().toISOString().slice(0,10);
+  managers.forEach(m=>{
+    const key = `managerDaily:${m.name}`;
+    const history = lsGet(key, {});
+    history[todayKey] = m.achieved;
+    const keys = Object.keys(history).sort();
+    while(keys.length > 31){ delete history[keys.shift()]; }
+    lsSet(key, history);
+  });
+}
+
+// returns last N days of {date, value} for a manager, sorted oldest→newest
+function getManagerSparkline(name, days=14){
+  const history = lsGet(`managerDaily:${name}`, {});
+  const keys = Object.keys(history).sort();
+  return keys.slice(-days).map(k=>({ date:k, value:history[k] }));
+}
+
+function buildSparklineSVG(points){
+  if(points.length < 2) return null;
+  const values = points.map(p=>p.value);
+  const min = Math.min(...values), max = Math.max(...values);
+  const range = Math.max(1, max-min);
+  const w = 100, h = 28, pad = 3;
+  const stepX = (w - pad*2) / (points.length-1);
+  const coords = values.map((v,i)=>{
+    const x = pad + i*stepX;
+    const y = h - pad - ((v-min)/range) * (h - pad*2);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+  const areaPath = `M${coords[0]} L${coords.join(' L')} L${w-pad},${h-pad} L${pad},${h-pad} Z`;
+  const linePath = `M${coords.join(' L')}`;
+  return `
+    <svg class="sparkline-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+      <path d="${areaPath}" fill="rgba(255,178,32,.16)" stroke="none"/>
+      <path d="${linePath}" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`;
+}
+
+// trend arrow: compares the average of the most recent half of the window
+// vs the earlier half, so a couple of noisy days don't flip it randomly
+function computeTrend(points){
+  if(points.length < 3) return null;
+  const mid = Math.floor(points.length/2);
+  const early = points.slice(0, mid).map(p=>p.value);
+  const recent = points.slice(mid).map(p=>p.value);
+  const earlyAvgGain = (early[early.length-1]-early[0]) / Math.max(1, early.length-1);
+  const recentAvgGain = (recent[recent.length-1]-recent[0]) / Math.max(1, recent.length-1);
+  if(recentAvgGain > earlyAvgGain * 1.15) return 'up';
+  if(recentAvgGain < earlyAvgGain * 0.85) return 'down';
+  return 'flat';
+}
+
+/* =========================================================================
    GOOGLE SHEET LIVE SYNC (gviz JSON endpoint — works cross-origin for
    sheets shared as "Anyone with the link — Viewer")
    ========================================================================= */
@@ -1496,14 +1660,19 @@ function rowsToManagers(rows){
   const achievedIdx = header.findIndex(c=>c.includes('achiev'));
   const reportsIdx = header.findIndex(c=>c.includes('report'));
   const lifetimeIdx = header.findIndex(c=>c.includes('lifetime'));
+  const weeklyTargetIdx = header.findIndex(c=>c.includes('weekly'));
   if(nameIdx<0 || targetIdx<0 || achievedIdx<0) throw new Error('columns-not-found');
 
-  const people = rows.slice(1).map(r=>({
-    name: (r[nameIdx]||'').trim(),
-    target: Number((r[targetIdx]||'0').replace(/,/g,'')) || 0,
-    achieved: Number((r[achievedIdx]||'0').replace(/,/g,'')) || 0,
-    reportsTo: reportsIdx>=0 ? (r[reportsIdx]||'').trim() : ''
-  })).filter(r=>r.name && !/^total$/i.test(r.name));
+  const people = rows.slice(1).map(r=>{
+    const weeklyRaw = weeklyTargetIdx>=0 ? Number((r[weeklyTargetIdx]||'').replace(/,/g,'')) : NaN;
+    return {
+      name: (r[nameIdx]||'').trim(),
+      target: Number((r[targetIdx]||'0').replace(/,/g,'')) || 0,
+      achieved: Number((r[achievedIdx]||'0').replace(/,/g,'')) || 0,
+      reportsTo: reportsIdx>=0 ? (r[reportsIdx]||'').trim() : '',
+      weeklyTarget: !isNaN(weeklyRaw) && weeklyRaw>0 ? weeklyRaw : null
+    };
+  }).filter(r=>r.name && !/^total$/i.test(r.name));
 
   let lifetimeAdmissions = null;
   if(lifetimeIdx>=0){
@@ -1528,13 +1697,18 @@ async function fetchSheetData(){
     const achievedKey = findKey('achiev');
     const reportsKey = findKey('report');
     const lifetimeKey = findKey('lifetime');
+    const weeklyTargetKey = findKey('weekly');
     if(!nameKey || !targetKey || !achievedKey) throw new Error('columns-not-found');
-    const people = data.map(r=>({
-      name: String(r[nameKey]||'').trim(),
-      target: Number(r[targetKey])||0,
-      achieved: Number(r[achievedKey])||0,
-      reportsTo: reportsKey ? String(r[reportsKey]||'').trim() : ''
-    })).filter(r=>r.name && !/^total$/i.test(r.name));
+    const people = data.map(r=>{
+      const weeklyRaw = weeklyTargetKey ? Number(r[weeklyTargetKey]) : NaN;
+      return {
+        name: String(r[nameKey]||'').trim(),
+        target: Number(r[targetKey])||0,
+        achieved: Number(r[achievedKey])||0,
+        reportsTo: reportsKey ? String(r[reportsKey]||'').trim() : '',
+        weeklyTarget: !isNaN(weeklyRaw) && weeklyRaw>0 ? weeklyRaw : null
+      };
+    }).filter(r=>r.name && !/^total$/i.test(r.name));
 
     let lifetimeAdmissions = null;
     if(lifetimeKey){
@@ -1571,15 +1745,18 @@ async function fetchSheetData(){
   const achievedIdx = cols.findIndex(c=>c.includes('achiev'));
   const reportsIdx = cols.findIndex(c=>c.includes('report'));
   const lifetimeIdx = cols.findIndex(c=>c.includes('lifetime'));
+  const weeklyTargetIdx = cols.findIndex(c=>c.includes('weekly'));
   if(nameIdx<0 || targetIdx<0 || achievedIdx<0) throw new Error('columns-not-found');
 
   const people = json.table.rows.map(r=>{
     const cells = r.c;
+    const weeklyRaw = weeklyTargetIdx>=0 ? Number(cells[weeklyTargetIdx]?.v) : NaN;
     return {
       name: cells[nameIdx]?.v,
       target: Number(cells[targetIdx]?.v)||0,
       achieved: Number(cells[achievedIdx]?.v)||0,
-      reportsTo: reportsIdx>=0 ? (cells[reportsIdx]?.v || '') : ''
+      reportsTo: reportsIdx>=0 ? (cells[reportsIdx]?.v || '') : '',
+      weeklyTarget: !isNaN(weeklyRaw) && weeklyRaw>0 ? weeklyRaw : null
     };
   }).filter(r=>r.name);
 
@@ -1605,7 +1782,7 @@ async function syncData(){
       managers = managerRows.map(r=>{
         const existing = managers.find(m=>m.name===r.name);
         return {
-          name:r.name, target:r.target, achieved:r.achieved,
+          name:r.name, target:r.target, achieved:r.achieved, weeklyTarget:r.weeklyTarget || null,
           prevAchieved: existing ? existing.achieved : r.achieved,
           history: existing ? existing.history : []
         };
@@ -1638,9 +1815,11 @@ async function syncData(){
 
   try{
     const agg = renderHeaderAndKpis();
+    recordManagerDailyHistory();
     renderLeaderboard();
     renderTLGroups();
     renderTopTls();
+    renderWeeklyTargets();
     updateCharts(agg);
     document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
   }catch(renderErr){
@@ -1679,11 +1858,21 @@ document.getElementById('searchInput').addEventListener('input', e=>{
   renderLeaderboard();
   renderTLGroups();
   renderTopTls();
+  renderWeeklyTargets();
 });
 
 let tvRotateTimer = null;
-const TV_PAGES = ['page-leaderboard','page-tls','page-charts','page-mom'];
+const TV_PAGES = ['page-leaderboard','page-tls','page-charts','page-mom','page-weekly'];
 let tvPageIndex = 0;
+
+// only rotate through pages that currently have content — a conditional
+// section like Weekly Targets is skipped automatically while hidden
+function getActiveTvPages(){
+  return TV_PAGES.filter(id=>{
+    const el = document.getElementById(id);
+    return el && el.style.display !== 'none';
+  });
+}
 
 function startTvRotation(){
   stopTvRotation();
@@ -1691,7 +1880,9 @@ function startTvRotation(){
   tvPageIndex = 0;
   showTvPage(tvPageIndex);
   tvRotateTimer = setInterval(()=>{
-    tvPageIndex = (tvPageIndex+1) % TV_PAGES.length;
+    const pages = getActiveTvPages();
+    if(pages.length===0) return;
+    tvPageIndex = (tvPageIndex+1) % pages.length;
     showTvPage(tvPageIndex);
   }, CONFIG.TV_ROTATE_MS);
 }
@@ -1704,9 +1895,10 @@ function stopTvRotation(){
   });
 }
 function showTvPage(idx){
-  TV_PAGES.forEach((id,i)=>{
+  const pages = getActiveTvPages();
+  TV_PAGES.forEach(id=>{
     const el = document.getElementById(id);
-    if(el) el.classList.toggle('active', i===idx);
+    if(el) el.classList.toggle('active', id===pages[idx]);
   });
 }
 
