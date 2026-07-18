@@ -293,6 +293,8 @@ body.tv-rotate .tv-page.active{ display:block; animation: pageIn .5s ease; }
 .last-update-tag{ font-size:10px; color:var(--muted); margin-top:10px; text-align:right; }
 .daily-needed{ font-size:11.5px; color:var(--muted); margin-top:10px; text-align:center; }
 .daily-needed b{ color:var(--orange2); font-family:'Space Grotesk'; }
+.edit-btn{ cursor:pointer; font-size:10px; opacity:.55; margin-left:6px; transition:opacity .2s; }
+.edit-btn:hover{ opacity:1; }
 
 .sparkline-wrap{ margin-top:12px; display:flex; align-items:center; gap:10px; background:rgba(255,255,255,.03); border-radius:10px; padding:8px 10px; }
 .sparkline-chart{ flex:1; height:28px; }
@@ -1205,7 +1207,7 @@ function buildCard(m, rank, badges, opts={}){
       <div class="mstat rem"><div class="v" data-role="rem">${remaining}</div><div class="l">Remaining</div></div>
     </div>
     <div class="progress-wrap">
-      <div class="progress-label"><span>Target Progress</span><b data-role="pct">${pct.toFixed(1)}%</b></div>
+      <div class="progress-label"><span>Target Progress${opts.editAction ? ` <span class="edit-btn" data-action="${opts.editAction}" data-name="${m.name}" data-current="${opts.editCurrentValue||''}" data-label="${opts.editLabel||'Target'}" title="Edit">✏️</span>` : ''}</span><b data-role="pct">${pct.toFixed(1)}%</b></div>
       <div class="progress-track"><div class="progress-fill" data-role="bar" style="width:0%"></div></div>
     </div>
     ${dailyNeeded !== null ? `<div class="daily-needed">📅 Needs ~<b data-role="dailyNeeded">${dailyNeeded.toFixed(1)}</b>/day to hit target</div>` : ''}
@@ -1450,11 +1452,12 @@ function renderWeeklyTargets(){
   }
   page.style.display = '';
 
+  const getWeekly = (m) => m.weeklyAchievedFromSheet !== null && m.weeklyAchievedFromSheet !== undefined
+    ? m.weeklyAchievedFromSheet
+    : getWeeklyAchieved(m.name, m.achieved);
+
   const filtered = withWeeklyTarget.filter(m => m.name.toLowerCase().includes(searchTerm.toLowerCase()));
-  const sorted = [...filtered].sort((a,b)=>{
-    const aw = getWeeklyAchieved(a.name, a.achieved), bw = getWeeklyAchieved(b.name, b.achieved);
-    return bw - aw;
-  });
+  const sorted = [...filtered].sort((a,b)=> getWeekly(b) - getWeekly(a));
 
   if(sorted.length===0){
     board.innerHTML = `<div class="empty-state">No matches for "${searchTerm}"</div>`;
@@ -1463,9 +1466,14 @@ function renderWeeklyTargets(){
 
   board.innerHTML = '';
   sorted.forEach((m,i)=>{
-    const weeklyAchieved = getWeeklyAchieved(m.name, m.achieved);
+    const weeklyAchieved = getWeekly(m);
     const pseudoManager = { name: m.name, target: m.weeklyTarget, achieved: weeklyAchieved, prevAchieved: weeklyAchieved };
-    const card = buildCard(pseudoManager, i+1, {}, {hideSparkline:true});
+    const card = buildCard(pseudoManager, i+1, {}, {
+      hideSparkline:true,
+      editAction:'setWeeklyTarget',
+      editLabel:'Weekly Target',
+      editCurrentValue:m.weeklyTarget
+    });
     board.appendChild(card);
     countUp(card.querySelector('[data-role="achv"]'), weeklyAchieved);
     const remaining = Math.max(0, m.weeklyTarget - weeklyAchieved);
@@ -1660,17 +1668,20 @@ function rowsToManagers(rows){
   const achievedIdx = header.findIndex(c=>c.includes('achiev'));
   const reportsIdx = header.findIndex(c=>c.includes('report'));
   const lifetimeIdx = header.findIndex(c=>c.includes('lifetime'));
-  const weeklyTargetIdx = header.findIndex(c=>c.includes('weekly'));
+  const weeklyTargetIdx = header.findIndex(c=>c.includes('weekly') && !c.includes('achiev'));
+  const weeklyAchievedIdx = header.findIndex(c=>c.includes('weekly') && c.includes('achiev'));
   if(nameIdx<0 || targetIdx<0 || achievedIdx<0) throw new Error('columns-not-found');
 
   const people = rows.slice(1).map(r=>{
     const weeklyRaw = weeklyTargetIdx>=0 ? Number((r[weeklyTargetIdx]||'').replace(/,/g,'')) : NaN;
+    const weeklyAchRaw = weeklyAchievedIdx>=0 ? Number((r[weeklyAchievedIdx]||'').replace(/,/g,'')) : NaN;
     return {
       name: (r[nameIdx]||'').trim(),
       target: Number((r[targetIdx]||'0').replace(/,/g,'')) || 0,
       achieved: Number((r[achievedIdx]||'0').replace(/,/g,'')) || 0,
       reportsTo: reportsIdx>=0 ? (r[reportsIdx]||'').trim() : '',
-      weeklyTarget: !isNaN(weeklyRaw) && weeklyRaw>0 ? weeklyRaw : null
+      weeklyTarget: !isNaN(weeklyRaw) && weeklyRaw>0 ? weeklyRaw : null,
+      weeklyAchievedFromSheet: weeklyAchievedIdx>=0 && r[weeklyAchievedIdx]!=='' && !isNaN(weeklyAchRaw) ? weeklyAchRaw : null
     };
   }).filter(r=>r.name && !/^total$/i.test(r.name));
 
@@ -1697,16 +1708,19 @@ async function fetchSheetData(){
     const achievedKey = findKey('achiev');
     const reportsKey = findKey('report');
     const lifetimeKey = findKey('lifetime');
-    const weeklyTargetKey = findKey('weekly');
+    const weeklyTargetKey = Object.keys(data[0]).find(k=>k.toLowerCase().includes('weekly') && !k.toLowerCase().includes('achiev'));
+    const weeklyAchievedKey = Object.keys(data[0]).find(k=>k.toLowerCase().includes('weekly') && k.toLowerCase().includes('achiev'));
     if(!nameKey || !targetKey || !achievedKey) throw new Error('columns-not-found');
     const people = data.map(r=>{
       const weeklyRaw = weeklyTargetKey ? Number(r[weeklyTargetKey]) : NaN;
+      const weeklyAchRaw = weeklyAchievedKey ? Number(r[weeklyAchievedKey]) : NaN;
       return {
         name: String(r[nameKey]||'').trim(),
         target: Number(r[targetKey])||0,
         achieved: Number(r[achievedKey])||0,
         reportsTo: reportsKey ? String(r[reportsKey]||'').trim() : '',
-        weeklyTarget: !isNaN(weeklyRaw) && weeklyRaw>0 ? weeklyRaw : null
+        weeklyTarget: !isNaN(weeklyRaw) && weeklyRaw>0 ? weeklyRaw : null,
+        weeklyAchievedFromSheet: weeklyAchievedKey && r[weeklyAchievedKey]!=='' && r[weeklyAchievedKey]!=null && !isNaN(weeklyAchRaw) ? weeklyAchRaw : null
       };
     }).filter(r=>r.name && !/^total$/i.test(r.name));
 
@@ -1745,18 +1759,21 @@ async function fetchSheetData(){
   const achievedIdx = cols.findIndex(c=>c.includes('achiev'));
   const reportsIdx = cols.findIndex(c=>c.includes('report'));
   const lifetimeIdx = cols.findIndex(c=>c.includes('lifetime'));
-  const weeklyTargetIdx = cols.findIndex(c=>c.includes('weekly'));
+  const weeklyTargetIdx = cols.findIndex(c=>c.includes('weekly') && !c.includes('achiev'));
+  const weeklyAchievedIdx = cols.findIndex(c=>c.includes('weekly') && c.includes('achiev'));
   if(nameIdx<0 || targetIdx<0 || achievedIdx<0) throw new Error('columns-not-found');
 
   const people = json.table.rows.map(r=>{
     const cells = r.c;
     const weeklyRaw = weeklyTargetIdx>=0 ? Number(cells[weeklyTargetIdx]?.v) : NaN;
+    const weeklyAchRaw = weeklyAchievedIdx>=0 ? Number(cells[weeklyAchievedIdx]?.v) : NaN;
     return {
       name: cells[nameIdx]?.v,
       target: Number(cells[targetIdx]?.v)||0,
       achieved: Number(cells[achievedIdx]?.v)||0,
       reportsTo: reportsIdx>=0 ? (cells[reportsIdx]?.v || '') : '',
-      weeklyTarget: !isNaN(weeklyRaw) && weeklyRaw>0 ? weeklyRaw : null
+      weeklyTarget: !isNaN(weeklyRaw) && weeklyRaw>0 ? weeklyRaw : null,
+      weeklyAchievedFromSheet: weeklyAchievedIdx>=0 && cells[weeklyAchievedIdx]?.v!=null && !isNaN(weeklyAchRaw) ? weeklyAchRaw : null
     };
   }).filter(r=>r.name);
 
@@ -1782,7 +1799,7 @@ async function syncData(){
       managers = managerRows.map(r=>{
         const existing = managers.find(m=>m.name===r.name);
         return {
-          name:r.name, target:r.target, achieved:r.achieved, weeklyTarget:r.weeklyTarget || null,
+          name:r.name, target:r.target, achieved:r.achieved, weeklyTarget:r.weeklyTarget || null, weeklyAchievedFromSheet:r.weeklyAchievedFromSheet,
           prevAchieved: existing ? existing.achieved : r.achieved,
           history: existing ? existing.history : []
         };
@@ -1935,6 +1952,43 @@ document.getElementById('btnSound').addEventListener('click', function(){
   btn.textContent = enabled ? '🔔' : '🔕';
   btn.title = enabled ? 'Milestone sound: ON' : 'Milestone sound: OFF';
 })();
+
+/* =========================================================================
+   GENERIC IN-DASHBOARD FIELD EDITING — PIN-protected, writes back to the
+   sheet via Apps Script. Used for Weekly Target (and reusable for any
+   future editable field via opts.editAction on buildCard).
+   ========================================================================= */
+document.addEventListener('click', (e)=>{
+  const btn = e.target.closest('.edit-btn');
+  if(!btn) return;
+  const action = btn.dataset.action;
+  const name = btn.dataset.name;
+  const current = btn.dataset.current;
+  const label = btn.dataset.label || 'value';
+
+  if(CONFIG.SHEET_MODE !== 'json' || !CONFIG.JSON_URL){
+    alert(`Editing ${label} from the dashboard requires the Apps Script connection. Update it directly in the sheet instead for now.`);
+    return;
+  }
+  const pin = prompt(`Enter PIN to edit ${name}'s ${label}:`);
+  if(pin === null) return;
+  if(pin !== CONFIG.TV_EXIT_PIN){ alert('Incorrect PIN.'); return; }
+
+  const valueStr = prompt(`${label} for ${name}${current ? ` (currently ${current})` : ''} — enter a number, or leave blank to clear:`, current || '');
+  if(valueStr === null) return;
+
+  const value = valueStr.trim() === '' ? 0 : Number(valueStr);
+  if(isNaN(value) || value < 0){ alert('Please enter a valid number.'); return; }
+
+  const url = `${CONFIG.JSON_URL}${CONFIG.JSON_URL.includes('?')?'&':'?'}action=${action}&name=${encodeURIComponent(name)}&value=${value}&_ts=${Date.now()}`;
+  fetch(url, {cache:'no-store'})
+    .then(res=>res.json())
+    .then(data=>{
+      if(data.status==='ok'){ syncData(); }
+      else{ alert(`Could not save — make sure your Apps Script has the "${action}" action added.`); }
+    })
+    .catch(()=>{ alert('Could not reach the sheet. Check your connection and try again.'); });
+});
 
 document.getElementById('btnQr').addEventListener('click', ()=>{
   const url = window.location.href;
