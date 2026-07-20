@@ -606,6 +606,14 @@ body.tv h1{ font-size:36px; }
   <div class="leaderboard" id="weeklyTargets"></div>
 </div>
 
+<!-- ============ REVISED TARGETS (only shown if the sheet has a "Revised Target" column) ============ -->
+<div class="tv-page" id="page-revised" style="display:none;">
+  <div class="section-head">
+    <h2>🎯 Revised Targets <span class="tag">Mid-month updates</span></h2>
+  </div>
+  <div class="leaderboard" id="revisedTargets"></div>
+</div>
+
 <!-- ============ CHARTS ============ -->
 <div class="tv-page" id="page-charts">
   <div class="section-head"><h2>📊 Performance Analytics</h2></div>
@@ -1202,9 +1210,8 @@ function buildCard(m, rank, badges, opts={}){
   }
 
   const statsBlock = showTarget ? `
-    <div class="mstats" style="${m.revisedTarget ? 'grid-template-columns:repeat(4,1fr);' : ''}">
+    <div class="mstats">
       <div class="mstat"><div class="v">${m.target}</div><div class="l">Target</div></div>
-      ${m.revisedTarget ? `<div class="mstat revised"><div class="v">${m.revisedTarget}</div><div class="l">Revised</div></div>` : ''}
       <div class="mstat achv"><div class="v" data-role="achv">${m.achieved}</div><div class="l">Achieved</div></div>
       <div class="mstat rem"><div class="v" data-role="rem">${remaining}</div><div class="l">Remaining</div></div>
     </div>
@@ -1481,6 +1488,49 @@ function renderWeeklyTargets(){
     const remaining = Math.max(0, m.weeklyTarget - weeklyAchieved);
     countUp(card.querySelector('[data-role="rem"]'), remaining);
     const pct = m.weeklyTarget ? (weeklyAchieved/m.weeklyTarget*100) : 0;
+    countUp(card.querySelector('[data-role="pct"]'), pct, {decimals:1, suffix:'%'});
+    const bar = card.querySelector('[data-role="bar"]');
+    if(bar) requestAnimationFrame(()=> bar.style.width = Math.min(100,pct)+'%');
+  });
+}
+
+/* =========================================================================
+   RENDER: REVISED TARGETS — entirely hidden unless at least one manager
+   has a "Revised Target" value in the sheet. Uses the SAME Achieved number
+   as the main leaderboard (not a separate achieved figure), just measured
+   against the revised target instead of the original one. Never touches
+   or affects the original Target card.
+   ========================================================================= */
+function renderRevisedTargets(){
+  const page = document.getElementById('page-revised');
+  const board = document.getElementById('revisedTargets');
+  if(!page || !board) return;
+
+  const withRevised = managers.filter(m => m.revisedTarget);
+  if(withRevised.length === 0){
+    page.style.display = 'none';
+    board.innerHTML = '';
+    return;
+  }
+  page.style.display = '';
+
+  const filtered = withRevised.filter(m => m.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  const sorted = [...filtered].sort((a,b)=> b.achieved - a.achieved);
+
+  if(sorted.length===0){
+    board.innerHTML = `<div class="empty-state">No matches for "${searchTerm}"</div>`;
+    return;
+  }
+
+  board.innerHTML = '';
+  sorted.forEach((m,i)=>{
+    const pseudoManager = { name: m.name, target: m.revisedTarget, achieved: m.achieved, prevAchieved: m.prevAchieved };
+    const card = buildCard(pseudoManager, i+1, {}, { hideSparkline:true });
+    board.appendChild(card);
+    countUp(card.querySelector('[data-role="achv"]'), m.achieved);
+    const remaining = Math.max(0, m.revisedTarget - m.achieved);
+    countUp(card.querySelector('[data-role="rem"]'), remaining);
+    const pct = m.revisedTarget ? (m.achieved/m.revisedTarget*100) : 0;
     countUp(card.querySelector('[data-role="pct"]'), pct, {decimals:1, suffix:'%'});
     const bar = card.querySelector('[data-role="bar"]');
     if(bar) requestAnimationFrame(()=> bar.style.width = Math.min(100,pct)+'%');
@@ -1848,6 +1898,7 @@ async function syncData(){
     renderTLGroups();
     renderTopTls();
     renderWeeklyTargets();
+    renderRevisedTargets();
     updateCharts(agg);
     document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
   }catch(renderErr){
@@ -1887,10 +1938,11 @@ document.getElementById('searchInput').addEventListener('input', e=>{
   renderTLGroups();
   renderTopTls();
   renderWeeklyTargets();
+  renderRevisedTargets();
 });
 
 let tvRotateTimer = null;
-const TV_PAGES = ['page-leaderboard','page-tls','page-charts','page-mom','page-weekly'];
+const TV_PAGES = ['page-leaderboard','page-tls','page-charts','page-mom','page-weekly','page-revised'];
 let tvPageIndex = 0;
 
 // only rotate through pages that currently have content — a conditional
