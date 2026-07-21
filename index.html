@@ -1525,7 +1525,7 @@ function renderRevisedTargets(){
   board.innerHTML = '';
   sorted.forEach((m,i)=>{
     const pseudoManager = { name: m.name, target: m.revisedTarget, achieved: m.achieved, prevAchieved: m.prevAchieved };
-    const card = buildCard(pseudoManager, i+1, {}, { hideSparkline:true });
+    const card = buildCard(pseudoManager, i+1, {}, { hideSparkline:true, ds: dateStats() });
     board.appendChild(card);
     countUp(card.querySelector('[data-role="achv"]'), m.achieved);
     const remaining = Math.max(0, m.revisedTarget - m.achieved);
