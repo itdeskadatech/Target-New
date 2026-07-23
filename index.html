@@ -397,6 +397,8 @@ body.tv-rotate .tv-page.active{ display:block; animation: pageIn .5s ease; }
   -webkit-background-clip:text; background-clip:text; color:transparent;
   animation: shimmerText 7s linear infinite;
 }
+.admissions-remaining{ font-size:13px; color:var(--muted); margin-top:6px; }
+.admissions-remaining b{ color:var(--orange2); font-family:'Space Grotesk'; font-weight:700; }
 .admissions-hero.milestone-flash{ animation: admissionsHeroFlash 1.6s ease; }
 @keyframes admissionsHeroFlash{
   0%{ box-shadow:0 30px 70px rgba(0,0,0,.5); }
@@ -427,6 +429,11 @@ body.tv h1{ font-size:36px; }
 
 /* empty state for search */
 .empty-state{ grid-column:1/-1; text-align:center; padding:40px; color:var(--muted); font-size:13px; }
+
+/* zero-admission visual flag on a card */
+.mcard.zero-flag{ border-color:rgba(255,84,112,.45); }
+.zero-tag{ font-size:9.5px; padding:2px 7px; border-radius:999px; font-weight:700; letter-spacing:.3px;
+  background:rgba(255,84,112,.15); color:#ff8fa3; border:1px solid rgba(255,84,112,.4); }
 
 /* ---------- TL groups ---------- */
 .tl-group{
@@ -527,6 +534,7 @@ body.tv h1{ font-size:36px; }
   <div class="admissions-text">
     <div class="admissions-label">Total Admissions — All Time</div>
     <div class="admissions-value" id="admissionsCount">0</div>
+    <div class="admissions-remaining" id="admissionsRemaining" style="display:none;"></div>
   </div>
 </div>
 
@@ -598,6 +606,19 @@ body.tv h1{ font-size:36px; }
   <div class="leaderboard" id="topTls"></div>
 </div>
 
+<!-- ============ COUNSELORS (review-meeting showcase) ============ -->
+<div class="tv-page" id="page-counselors">
+  <div class="section-head">
+    <h2>🎓 Counselors by Manager <span class="tag">Auto-grouped</span></h2>
+  </div>
+  <div id="counselorGroups"></div>
+
+  <div class="section-head">
+    <h2>🌟 Top Counselors <span class="tag">Org-wide</span></h2>
+  </div>
+  <div class="leaderboard" id="topCounselors"></div>
+</div>
+
 <!-- ============ WEEKLY TARGETS (only shown if the sheet has a "Weekly" column) ============ -->
 <div class="tv-page" id="page-weekly" style="display:none;">
   <div class="section-head">
@@ -662,7 +683,7 @@ const CONFIG = {
   SHEET_MODE: 'json',     // 'csv' (published CSV link), 'gviz' (regular share link), or 'json' (Apps Script)
   SHEET_ID: '',           // only used when SHEET_MODE === 'gviz'
   SHEET_NAME: 'Sheet1',
-  REFRESH_MS: 5000,
+  REFRESH_MS: 25000,
   TV_ROTATE_MS: 9000,     // how long each TV-mode page stays visible
   TV_EXIT_PIN: '1234',    // change this to whatever PIN you want to require to exit TV mode
   HEALTH_CHECK_MINUTES: 15 // how long the sheet must be unreachable before an alert email is sent
@@ -681,6 +702,7 @@ function lsSet(key, value){
 
 let managers = [];       // live data: {name, target, achieved, prevAchieved, history:[]}
 let tls = [];             // Team Leads: {name, target, achieved, prevAchieved, reportsTo}
+let counselors = [];      // Counselors: {name, target, achieved, prevAchieved, reportsTo} — same level as TLs
 let usingLiveSheet = false;
 let searchTerm = '';
 let refreshTimer = null;
@@ -703,6 +725,12 @@ function seedDemoData(){
     { name:'Karan', target:70, achieved:8,  reportsTo:'Deepesh' },
     { name:'Sneha', target:40, achieved:5,  reportsTo:'Manas' },
   ].map(t => ({...t, prevAchieved:t.achieved}));
+
+  counselors = [
+    { name:'Vikram', target:35, achieved:6, reportsTo:'Aslam' },
+    { name:'Neha',   target:30, achieved:0, reportsTo:'Aslam' },
+    { name:'Farhan', target:25, achieved:4, reportsTo:'Deepesh' },
+  ].map(c => ({...c, prevAchieved:c.achieved}));
 }
 seedDemoData();
 
@@ -720,6 +748,13 @@ function simulateDemoTick(){
     if(Math.random() < 0.7){
       const bump = Math.floor(Math.random()*2); // 0-1
       t.achieved = Math.min(t.target, t.achieved + bump);
+    }
+  });
+  counselors.forEach(c=>{
+    c.prevAchieved = c.achieved;
+    if(Math.random() < 0.5){
+      const bump = Math.floor(Math.random()*2); // 0-1
+      c.achieved = Math.min(c.target, c.achieved + bump);
     }
   });
   if(Math.random() < 0.5){
@@ -915,6 +950,7 @@ function playAdmissionsFanfare(){
 // "Lifetime Admissions" column) and fires a distinct sound every time it
 // crosses a multiple of 100 (persisted so it survives reloads)
 let lifetimeAdmissionsFromSheet = null;
+let allTimeAdmissionTarget = null;
 let demoLifetimeAdmissions = lsGet('demoLifetimeAdmissions', 3200);
 let lastKnownTotalAdmissions = lsGet('lastKnownTotalAdmissions', null);
 /* =========================================================================
@@ -948,6 +984,19 @@ function sendHealthAlertEmail(minutesDown){
 function updateTotalAdmissions(total){
   const el = document.getElementById('admissionsCount');
   if(el) countUp(el, total);
+
+  const remainingEl = document.getElementById('admissionsRemaining');
+  if(remainingEl){
+    if(allTimeAdmissionTarget){
+      const remaining = Math.max(0, allTimeAdmissionTarget - total);
+      remainingEl.style.display = '';
+      remainingEl.innerHTML = remaining > 0
+        ? `<b>${remaining}</b> left to reach the ${allTimeAdmissionTarget} all-time goal`
+        : `🎉 All-time goal of ${allTimeAdmissionTarget} reached!`;
+    } else {
+      remainingEl.style.display = 'none';
+    }
+  }
 
   if(lastKnownTotalAdmissions !== null){
     const prevHundreds = Math.floor(lastKnownTotalAdmissions/100);
@@ -1157,7 +1206,7 @@ function buildCard(m, rank, badges, opts={}){
   const remaining = Math.max(0, m.target-m.achieved);
   const pct = m.target ? (m.achieved/m.target*100) : 0;
   const div = document.createElement('div');
-  div.className = 'mcard' + (rank===1?' rank-1':'');
+  div.className = 'mcard' + (rank===1?' rank-1':'') + (m.achieved===0 ? ' zero-flag' : '');
   div.dataset.name = m.name;
 
   let rankClass = '';
@@ -1168,6 +1217,7 @@ function buildCard(m, rank, badges, opts={}){
   if(badges.fastestGrowing===m.name) chips += `<span class="badge-chip badge-fast">🔥 FASTEST GROWING</span>`;
   if(badges.closest===m.name && badges.closest!==badges.topPerformer) chips += `<span class="badge-chip badge-close">🎯 CLOSEST TO TARGET</span>`;
   if(badges.weeklyMVP===m.name) chips += `<span class="badge-chip badge-weekly">🌟 WEEKLY MVP</span>`;
+  if(m.achieved===0) chips += `<span class="zero-tag">⚠️ ZERO ADMISSIONS</span>`;
 
   if(showTarget && opts.ds){
     const pace = paceStatus(m.target, m.achieved, opts.ds);
@@ -1440,6 +1490,109 @@ function renderTopTls(){
     const card = buildCard(t, i+1, {}, {showTarget:false});
     board.appendChild(card);
     countUp(card.querySelector('[data-role="achv"]'), t.achieved);
+  });
+}
+
+/* =========================================================================
+   RENDER: COUNSELORS — grouped under their reporting Manager, for
+   review-meeting showcase. Same structure as Team Leads, kept separate.
+   ========================================================================= */
+function renderCounselorGroups(){
+  const wrap = document.getElementById('counselorGroups');
+  if(!wrap) return;
+
+  if(counselors.length===0){
+    wrap.innerHTML = `<div class="empty-state">No Counselors added yet — add a "Role" column (value: Counselor) alongside "Reports To" in your sheet to enable this section.</div>`;
+    return;
+  }
+
+  const managerOrder = [...managers].sort((a,b)=>b.achieved-a.achieved).map(m=>m.name);
+  const grouped = {};
+  counselors.forEach(c=>{
+    const key = managerOrder.includes(c.reportsTo) ? c.reportsTo : (c.reportsTo || 'Unassigned');
+    (grouped[key] = grouped[key] || []).push(c);
+  });
+  const groupNames = Object.keys(grouped).sort((a,b)=>{
+    const ai = managerOrder.indexOf(a), bi = managerOrder.indexOf(b);
+    if(ai<0 && bi<0) return a.localeCompare(b);
+    if(ai<0) return 1;
+    if(bi<0) return -1;
+    return ai-bi;
+  });
+
+  const filtered = searchTerm ? groupNames.filter(g =>
+    g.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    grouped[g].some(c=>c.name.toLowerCase().includes(searchTerm.toLowerCase()))
+  ) : groupNames;
+
+  if(filtered.length===0){
+    wrap.innerHTML = `<div class="empty-state">No Counselors match "${searchTerm}"</div>`;
+    return;
+  }
+
+  wrap.innerHTML = '';
+  filtered.forEach(groupName=>{
+    const groupCounselors = [...grouped[groupName]].sort((a,b)=>b.achieved-a.achieved);
+    const groupAchieved = groupCounselors.reduce((s,c)=>s+c.achieved,0);
+    const zeroCount = groupCounselors.filter(c=>c.achieved===0).length;
+
+    const section = document.createElement('div');
+    section.className = 'tl-group';
+    section.innerHTML = `
+      <div class="tl-group-head">
+        <div class="tl-group-title">
+          <span class="tl-group-avatar">${initials(groupName)}</span>
+          <div>
+            <div class="tl-group-name">Reporting to ${groupName}</div>
+            <div class="tl-group-sub">${groupCounselors.length} Counselor${groupCounselors.length>1?'s':''}${zeroCount>0 ? ` · <span style="color:#ff8fa3">${zeroCount} at zero</span>` : ''}</div>
+          </div>
+        </div>
+        <div class="tl-group-total">
+          <div class="tl-group-pct">${groupAchieved}</div>
+          <div class="tl-group-caption">Total Achieved</div>
+        </div>
+      </div>
+      <div class="tl-cards"></div>
+    `;
+    const cardHolder = section.querySelector('.tl-cards');
+    groupCounselors.forEach((c,i)=>{
+      const card = buildCard(c, i+1, {}, {showTarget:false});
+      card.classList.add('tl-card');
+      card.style.opacity='0'; card.style.transform='translateY(10px)';
+      cardHolder.appendChild(card);
+      requestAnimationFrame(()=>{
+        card.style.transition='opacity .5s, transform .5s';
+        card.style.opacity='1'; card.style.transform='translateY(0)';
+      });
+
+      countUp(card.querySelector('[data-role="achv"]'), c.achieved);
+      if(c.achieved !== c.prevAchieved){
+        flashCard(card);
+        checkMilestone(c.name, c.target, c.prevAchieved, c.achieved, card);
+      }
+    });
+    wrap.appendChild(section);
+  });
+}
+
+function renderTopCounselors(){
+  const board = document.getElementById('topCounselors');
+  if(!board) return;
+  if(counselors.length===0){ board.innerHTML=''; return; }
+
+  const filtered = counselors.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  const top5 = [...filtered].sort((a,b)=>b.achieved-a.achieved).slice(0,5);
+
+  if(top5.length===0){
+    board.innerHTML = `<div class="empty-state">No Counselors match "${searchTerm}"</div>`;
+    return;
+  }
+
+  board.innerHTML = '';
+  top5.forEach((c,i)=>{
+    const card = buildCard(c, i+1, {}, {showTarget:false});
+    board.appendChild(card);
+    countUp(card.querySelector('[data-role="achv"]'), c.achieved);
   });
 }
 
@@ -1720,9 +1873,11 @@ function rowsToManagers(rows){
   const achievedIdx = header.findIndex(c=>c.includes('achiev'));
   const reportsIdx = header.findIndex(c=>c.includes('report'));
   const lifetimeIdx = header.findIndex(c=>c.includes('lifetime'));
+  const allTimeTargetIdx = header.findIndex(c=>c.includes('all') && c.includes('time') && c.includes('target'));
   const weeklyTargetIdx = header.findIndex(c=>c.includes('weekly') && !c.includes('achiev'));
   const weeklyAchievedIdx = header.findIndex(c=>c.includes('weekly') && c.includes('achiev'));
   const revisedTargetIdx = header.findIndex(c=>c.includes('revised'));
+  const roleIdx = header.findIndex(c=>c==='role' || c.includes('role'));
   if(nameIdx<0 || targetIdx<0 || achievedIdx<0) throw new Error('columns-not-found');
 
   const people = rows.slice(1).map(r=>{
@@ -1734,6 +1889,7 @@ function rowsToManagers(rows){
       target: Number((r[targetIdx]||'0').replace(/,/g,'')) || 0,
       achieved: Number((r[achievedIdx]||'0').replace(/,/g,'')) || 0,
       reportsTo: reportsIdx>=0 ? (r[reportsIdx]||'').trim() : '',
+      role: roleIdx>=0 ? (r[roleIdx]||'').trim().toLowerCase() : '',
       weeklyTarget: !isNaN(weeklyRaw) && weeklyRaw>0 ? weeklyRaw : null,
       weeklyAchievedFromSheet: weeklyAchievedIdx>=0 && r[weeklyAchievedIdx]!=='' && !isNaN(weeklyAchRaw) ? weeklyAchRaw : null,
       revisedTarget: revisedTargetIdx>=0 && r[revisedTargetIdx]!=='' && !isNaN(revisedRaw) && revisedRaw>0 ? revisedRaw : null
@@ -1747,7 +1903,14 @@ function rowsToManagers(rows){
       if(r[lifetimeIdx] && !isNaN(v) && v>0){ lifetimeAdmissions = v; break; }
     }
   }
-  return { people, lifetimeAdmissions };
+  let allTimeTarget = null;
+  if(allTimeTargetIdx>=0){
+    for(const r of rows.slice(1)){
+      const v = Number((r[allTimeTargetIdx]||'').replace(/,/g,''));
+      if(r[allTimeTargetIdx] && !isNaN(v) && v>0){ allTimeTarget = v; break; }
+    }
+  }
+  return { people, lifetimeAdmissions, allTimeTarget };
 }
 
 async function fetchSheetData(){
@@ -1763,9 +1926,14 @@ async function fetchSheetData(){
     const achievedKey = findKey('achiev');
     const reportsKey = findKey('report');
     const lifetimeKey = findKey('lifetime');
+    const allTimeTargetKey = Object.keys(data[0]).find(k=>{
+      const kl = k.toLowerCase();
+      return kl.includes('all') && kl.includes('time') && kl.includes('target');
+    });
     const weeklyTargetKey = Object.keys(data[0]).find(k=>k.toLowerCase().includes('weekly') && !k.toLowerCase().includes('achiev'));
     const weeklyAchievedKey = Object.keys(data[0]).find(k=>k.toLowerCase().includes('weekly') && k.toLowerCase().includes('achiev'));
     const revisedTargetKey = findKey('revised');
+    const roleKey = findKey('role');
     if(!nameKey || !targetKey || !achievedKey) throw new Error('columns-not-found');
     const people = data.map(r=>{
       const weeklyRaw = weeklyTargetKey ? Number(r[weeklyTargetKey]) : NaN;
@@ -1776,6 +1944,7 @@ async function fetchSheetData(){
         target: Number(r[targetKey])||0,
         achieved: Number(r[achievedKey])||0,
         reportsTo: reportsKey ? String(r[reportsKey]||'').trim() : '',
+        role: roleKey ? String(r[roleKey]||'').trim().toLowerCase() : '',
         weeklyTarget: !isNaN(weeklyRaw) && weeklyRaw>0 ? weeklyRaw : null,
         weeklyAchievedFromSheet: weeklyAchievedKey && r[weeklyAchievedKey]!=='' && r[weeklyAchievedKey]!=null && !isNaN(weeklyAchRaw) ? weeklyAchRaw : null,
         revisedTarget: revisedTargetKey && r[revisedTargetKey]!=='' && r[revisedTargetKey]!=null && !isNaN(revisedRaw) && revisedRaw>0 ? revisedRaw : null
@@ -1789,7 +1958,14 @@ async function fetchSheetData(){
         if(r[lifetimeKey] !== '' && r[lifetimeKey] != null && !isNaN(v) && v>0){ lifetimeAdmissions = v; break; }
       }
     }
-    return { people, lifetimeAdmissions };
+    let allTimeTarget = null;
+    if(allTimeTargetKey){
+      for(const r of data){
+        const v = Number(r[allTimeTargetKey]);
+        if(r[allTimeTargetKey] !== '' && r[allTimeTargetKey] != null && !isNaN(v) && v>0){ allTimeTarget = v; break; }
+      }
+    }
+    return { people, lifetimeAdmissions, allTimeTarget };
   }
 
   if(CONFIG.SHEET_MODE === 'csv'){
@@ -1817,9 +1993,11 @@ async function fetchSheetData(){
   const achievedIdx = cols.findIndex(c=>c.includes('achiev'));
   const reportsIdx = cols.findIndex(c=>c.includes('report'));
   const lifetimeIdx = cols.findIndex(c=>c.includes('lifetime'));
+  const allTimeTargetIdx = cols.findIndex(c=>c.includes('all') && c.includes('time') && c.includes('target'));
   const weeklyTargetIdx = cols.findIndex(c=>c.includes('weekly') && !c.includes('achiev'));
   const weeklyAchievedIdx = cols.findIndex(c=>c.includes('weekly') && c.includes('achiev'));
   const revisedTargetIdx = cols.findIndex(c=>c.includes('revised'));
+  const roleIdx = cols.findIndex(c=>c.includes('role'));
   if(nameIdx<0 || targetIdx<0 || achievedIdx<0) throw new Error('columns-not-found');
 
   const people = json.table.rows.map(r=>{
@@ -1832,6 +2010,7 @@ async function fetchSheetData(){
       target: Number(cells[targetIdx]?.v)||0,
       achieved: Number(cells[achievedIdx]?.v)||0,
       reportsTo: reportsIdx>=0 ? (cells[reportsIdx]?.v || '') : '',
+      role: roleIdx>=0 ? String(cells[roleIdx]?.v || '').trim().toLowerCase() : '',
       weeklyTarget: !isNaN(weeklyRaw) && weeklyRaw>0 ? weeklyRaw : null,
       weeklyAchievedFromSheet: weeklyAchievedIdx>=0 && cells[weeklyAchievedIdx]?.v!=null && !isNaN(weeklyAchRaw) ? weeklyAchRaw : null,
       revisedTarget: revisedTargetIdx>=0 && cells[revisedTargetIdx]?.v!=null && !isNaN(revisedRaw) && revisedRaw>0 ? revisedRaw : null
@@ -1845,7 +2024,14 @@ async function fetchSheetData(){
       if(v !== null && v !== undefined && Number(v)>0){ lifetimeAdmissions = Number(v); break; }
     }
   }
-  return { people, lifetimeAdmissions };
+  let allTimeTarget = null;
+  if(allTimeTargetIdx>=0){
+    for(const r of json.table.rows){
+      const v = r.c[allTimeTargetIdx]?.v;
+      if(v !== null && v !== undefined && Number(v)>0){ allTimeTarget = Number(v); break; }
+    }
+  }
+  return { people, lifetimeAdmissions, allTimeTarget };
 }
 
 async function syncData(){
@@ -1854,9 +2040,10 @@ async function syncData(){
     : !!CONFIG.SHEET_ID;
   try{
     if(sheetConfigured){
-      const { people: rows, lifetimeAdmissions: fetchedLifetime } = await fetchSheetData();
+      const { people: rows, lifetimeAdmissions: fetchedLifetime, allTimeTarget: fetchedAllTimeTarget } = await fetchSheetData();
       const managerRows = rows.filter(r=>!r.reportsTo);
-      const tlRows = rows.filter(r=>r.reportsTo);
+      const tlRows = rows.filter(r=>r.reportsTo && r.role !== 'counselor');
+      const counselorRows = rows.filter(r=>r.reportsTo && r.role === 'counselor');
       managers = managerRows.map(r=>{
         const existing = managers.find(m=>m.name===r.name);
         return {
@@ -1872,8 +2059,18 @@ async function syncData(){
           prevAchieved: existing ? existing.achieved : r.achieved
         };
       });
+      counselors = counselorRows.map(r=>{
+        const existing = counselors.find(c=>c.name===r.name);
+        return {
+          name:r.name, target:r.target, achieved:r.achieved, reportsTo:r.reportsTo,
+          prevAchieved: existing ? existing.achieved : r.achieved
+        };
+      });
       if(fetchedLifetime !== null){
         lifetimeAdmissionsFromSheet = fetchedLifetime;
+      }
+      if(fetchedAllTimeTarget !== null){
+        allTimeAdmissionTarget = fetchedAllTimeTarget;
       }
       usingLiveSheet = true;
       document.getElementById('liveLabel').textContent = 'LIVE · GOOGLE SHEET';
@@ -1897,6 +2094,8 @@ async function syncData(){
     renderLeaderboard();
     renderTLGroups();
     renderTopTls();
+    renderCounselorGroups();
+    renderTopCounselors();
     renderWeeklyTargets();
     renderRevisedTargets();
     updateCharts(agg);
@@ -1937,12 +2136,14 @@ document.getElementById('searchInput').addEventListener('input', e=>{
   renderLeaderboard();
   renderTLGroups();
   renderTopTls();
+  renderCounselorGroups();
+  renderTopCounselors();
   renderWeeklyTargets();
   renderRevisedTargets();
 });
 
 let tvRotateTimer = null;
-const TV_PAGES = ['page-leaderboard','page-tls','page-charts','page-mom','page-weekly','page-revised'];
+const TV_PAGES = ['page-leaderboard','page-tls','page-counselors','page-charts','page-mom','page-weekly','page-revised'];
 let tvPageIndex = 0;
 
 // only rotate through pages that currently have content — a conditional
@@ -2074,6 +2275,11 @@ document.getElementById('btnCsv').addEventListener('click', ()=>{
     const rem = Math.max(0, t.target-t.achieved);
     const pct = t.target ? (t.achieved/t.target*100).toFixed(1) : '0';
     rows.push([t.name,'TL',t.target,t.achieved,rem,pct,t.reportsTo||'']);
+  });
+  counselors.forEach(c=>{
+    const rem = Math.max(0, c.target-c.achieved);
+    const pct = c.target ? (c.achieved/c.target*100).toFixed(1) : '0';
+    rows.push([c.name,'Counselor',c.target,c.achieved,rem,pct,c.reportsTo||'']);
   });
   const csv = rows.map(r => r.map(cell => {
     const s = String(cell);
