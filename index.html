@@ -632,6 +632,44 @@ body.tv h1{ font-size:36px; }
   <div class="section-head">
     <h2>🎯 Revised Targets <span class="tag">Mid-month updates</span></h2>
   </div>
+  <div class="kpi-grid" style="margin-bottom:22px;">
+    <div class="kpi target">
+      <div class="k-icon">🎯</div>
+      <div class="k-label">Total Revised Target</div>
+      <div class="k-value" id="rTotalTarget">0</div>
+      <div class="k-sub">Across revised managers</div>
+    </div>
+    <div class="kpi achieved">
+      <div class="k-icon">✅</div>
+      <div class="k-label">Total Achieved</div>
+      <div class="k-value" id="rTotalAchieved">0</div>
+      <div class="k-bar"><i id="rAchievedBar"></i></div>
+    </div>
+    <div class="kpi remaining">
+      <div class="k-icon">📉</div>
+      <div class="k-label">Remaining Target</div>
+      <div class="k-value" id="rRemaining">0</div>
+      <div class="k-sub" id="rRemainingSub">-</div>
+    </div>
+    <div class="kpi pct">
+      <div class="k-icon">📈</div>
+      <div class="k-label">Overall Achievement</div>
+      <div class="k-value" id="rOverallPct">0%</div>
+      <div class="k-sub" id="rDailyReq">-</div>
+    </div>
+    <div class="kpi passed">
+      <div class="k-icon">📅</div>
+      <div class="k-label">Days Passed</div>
+      <div class="k-value" id="rDaysPassed">0</div>
+      <div class="k-sub" id="rDaysPassedSub">-</div>
+    </div>
+    <div class="kpi left">
+      <div class="k-icon">⏳</div>
+      <div class="k-label">Days Left</div>
+      <div class="k-value" id="rDaysLeft">0</div>
+      <div class="k-sub" id="rDaysLeftSub">-</div>
+    </div>
+  </div>
   <div class="leaderboard" id="revisedTargets"></div>
 </div>
 
@@ -1667,6 +1705,29 @@ function renderRevisedTargets(){
   }
   page.style.display = '';
 
+  // ---- aggregate KPI row (mirrors the main KPI grid, scoped to revised managers) ----
+  const ds = dateStats();
+  const rTotalTarget = withRevised.reduce((s,m)=>s+m.revisedTarget,0);
+  const rTotalAchieved = withRevised.reduce((s,m)=>s+m.achieved,0);
+  const rRemaining = Math.max(0, rTotalTarget-rTotalAchieved);
+  const rPct = rTotalTarget ? (rTotalAchieved/rTotalTarget*100) : 0;
+  const rDailyRequired = ds.daysLeft>0 ? (rRemaining/ds.daysLeft) : 0;
+  const rDailyRate = ds.daysPassed>0 ? rTotalAchieved/ds.daysPassed : 0;
+  const rProjected = Math.round(rDailyRate * ds.totalDays);
+  const rProjectedPct = rTotalTarget ? (rProjected/rTotalTarget*100) : 0;
+
+  countUp(document.getElementById('rTotalTarget'), rTotalTarget);
+  countUp(document.getElementById('rTotalAchieved'), rTotalAchieved);
+  countUp(document.getElementById('rRemaining'), rRemaining);
+  countUp(document.getElementById('rOverallPct'), rPct, {decimals:1, suffix:'%'});
+  countUp(document.getElementById('rDaysPassed'), ds.daysPassed);
+  countUp(document.getElementById('rDaysLeft'), ds.daysLeft);
+  document.getElementById('rAchievedBar').style.width = Math.min(100,rPct)+'%';
+  document.getElementById('rRemainingSub').textContent = `${(100-rPct).toFixed(1)}% left to close`;
+  document.getElementById('rDailyReq').textContent = `Needs ~${rDailyRequired.toFixed(1)}/day · Projected month-end: ${rProjected} (${rProjectedPct.toFixed(1)}%)`;
+  document.getElementById('rDaysPassedSub').textContent = `of ${ds.totalDays} days (from ${ds.start.toLocaleDateString('en-GB',{day:'2-digit',month:'short'})})`;
+  document.getElementById('rDaysLeftSub').textContent = `till ${ds.end.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}`;
+
   const filtered = withRevised.filter(m => m.name.toLowerCase().includes(searchTerm.toLowerCase()));
   const sorted = [...filtered].sort((a,b)=> b.achieved - a.achieved);
 
@@ -1678,7 +1739,7 @@ function renderRevisedTargets(){
   board.innerHTML = '';
   sorted.forEach((m,i)=>{
     const pseudoManager = { name: m.name, target: m.revisedTarget, achieved: m.achieved, prevAchieved: m.prevAchieved };
-    const card = buildCard(pseudoManager, i+1, {}, { hideSparkline:true, ds: dateStats() });
+    const card = buildCard(pseudoManager, i+1, {}, { hideSparkline:true, ds });
     board.appendChild(card);
     countUp(card.querySelector('[data-role="achv"]'), m.achieved);
     const remaining = Math.max(0, m.revisedTarget - m.achieved);
