@@ -814,8 +814,10 @@ function dateStats(){
   const monthLabel = today.toLocaleDateString('en-GB', {month:'long', year:'numeric'}).toUpperCase();
 
   const totalDays = Math.round((end-start)/86400000)+1;
-  let daysPassed = Math.round((todayMid-start)/86400000)+1;
-  daysPassed = Math.max(1, Math.min(totalDays, daysPassed));
+  // days FULLY elapsed before today — today itself is still in progress,
+  // so it's not counted as "passed"; it's counted in daysLeft instead
+  let daysPassed = Math.round((todayMid-start)/86400000);
+  daysPassed = Math.max(0, Math.min(totalDays, daysPassed));
   const daysLeft = Math.max(0, totalDays - daysPassed);
 
   const fmt = d => d.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'});
