@@ -312,6 +312,55 @@ body.tv-rotate .tv-page.active{ display:block; animation: pageIn .5s ease; }
 
 #confettiCanvas{ position:fixed; inset:0; pointer-events:none; z-index:80; }
 
+/* ---------- grand milestone banner (e.g. every 1000 admissions) ---------- */
+.milestone-banner-overlay{
+  position:fixed; inset:0; z-index:90; display:none; align-items:center; justify-content:center;
+  background:rgba(0,0,0,0); pointer-events:none;
+}
+.milestone-banner-overlay.show{ display:flex; animation: bannerBgFade 3.6s ease forwards; }
+@keyframes bannerBgFade{
+  0%{ background:rgba(0,0,0,0); }
+  15%{ background:rgba(0,0,0,.55); }
+  80%{ background:rgba(0,0,0,.55); }
+  100%{ background:rgba(0,0,0,0); }
+}
+.milestone-banner-card{
+  position:relative; text-align:center; padding:50px 70px;
+  background:radial-gradient(ellipse at center, rgba(255,178,32,.18), rgba(13,11,8,.95) 70%);
+  border:2px solid rgba(245,196,81,.6); border-radius:32px;
+  box-shadow:0 0 80px rgba(245,196,81,.5), 0 30px 80px rgba(0,0,0,.6);
+  transform:scale(0.3); opacity:0;
+  animation: bannerPopIn 3.6s cubic-bezier(.34,1.56,.64,1) forwards;
+  overflow:hidden;
+}
+@keyframes bannerPopIn{
+  0%{ transform:scale(0.3) rotate(-8deg); opacity:0; }
+  12%{ transform:scale(1.08) rotate(2deg); opacity:1; }
+  20%{ transform:scale(1) rotate(0deg); opacity:1; }
+  85%{ transform:scale(1) rotate(0deg); opacity:1; }
+  100%{ transform:scale(0.85) rotate(0deg); opacity:0; }
+}
+.milestone-rays{
+  position:absolute; inset:-50%; z-index:0;
+  background:conic-gradient(from 0deg, transparent, rgba(255,178,32,.25), transparent 15%, transparent 30%, rgba(245,196,81,.2), transparent 45%);
+  animation: milestoneRaysSpin 6s linear infinite;
+}
+@keyframes milestoneRaysSpin{ to{ transform:rotate(360deg); } }
+.milestone-emoji{
+  font-size:64px; position:relative; z-index:1; margin-bottom:8px;
+  animation: milestoneEmojiBounce 1s ease-in-out infinite;
+  filter:drop-shadow(0 0 20px rgba(245,196,81,.7));
+}
+@keyframes milestoneEmojiBounce{ 0%,100%{ transform:translateY(0) scale(1);} 50%{ transform:translateY(-12px) scale(1.08);} }
+.milestone-banner-title{
+  position:relative; z-index:1; font-family:'Space Grotesk'; font-weight:800;
+  font-size:clamp(32px,5vw,56px); letter-spacing:1px;
+  background:linear-gradient(90deg,var(--white),var(--gold),var(--orange),var(--gold),var(--white));
+  background-size:250% auto; -webkit-background-clip:text; background-clip:text; color:transparent;
+  animation: shimmerText 2.5s linear infinite;
+}
+.milestone-banner-sub{ position:relative; z-index:1; color:var(--muted); font-size:15px; margin-top:10px; }
+
 /* ---------- ambient living background ---------- */
 .ambient-bg{ position:fixed; inset:0; z-index:-1; overflow:hidden; pointer-events:none; }
 .orb{ position:absolute; border-radius:50%; filter:blur(70px); opacity:.30; }
@@ -390,12 +439,46 @@ body.tv-rotate .tv-page.active{ display:block; animation: pageIn .5s ease; }
 }
 .admissions-label::before, .admissions-label::after{ content:''; flex:1; height:1px; background:linear-gradient(90deg, transparent, rgba(245,196,81,.5)); max-width:24px; }
 .admissions-label::after{ background:linear-gradient(90deg, rgba(245,196,81,.5), transparent); }
-.admissions-value{
-  font-family:'Space Grotesk'; font-weight:800; font-size:clamp(46px,6vw,72px); line-height:1.05; margin-top:6px; letter-spacing:-1px;
-  background:linear-gradient(90deg,var(--white) 10%,var(--gold) 45%,var(--orange) 75%,var(--gold) 100%);
-  background-size:220% auto;
-  -webkit-background-clip:text; background-clip:text; color:transparent;
-  animation: shimmerText 7s linear infinite;
+.flip-counter{ display:flex; gap:8px; justify-content:center; margin-top:10px; position:relative; overflow:hidden; padding:0 4px; }
+.flip-counter::before{
+  content:''; position:absolute; top:0; left:-40%; width:30%; height:100%;
+  background:linear-gradient(100deg, transparent, rgba(255,255,255,.35), rgba(245,196,81,.5), transparent);
+  animation: counterSweep 2.4s ease-in-out infinite; pointer-events:none; z-index:5;
+}
+@keyframes counterSweep{ 0%{ left:-40%;} 100%{ left:130%;} }
+.flip-digit{
+  width:clamp(38px,5vw,58px); height:clamp(54px,7vw,82px);
+  background:linear-gradient(160deg,#241c12,#0d0a06); border-radius:12px;
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Space Grotesk'; font-weight:800; font-size:clamp(28px,4.2vw,44px);
+  color:#f5c451; text-shadow:0 0 12px rgba(245,196,81,.5);
+  position:relative; overflow:hidden; border:1px solid rgba(245,196,81,.3);
+  box-shadow:inset 0 2px 4px rgba(0,0,0,.6), 0 6px 16px rgba(0,0,0,.4);
+  animation: digitBob 1.8s ease-in-out infinite;
+}
+.flip-digit:nth-child(1){ animation-delay:0s; }
+.flip-digit:nth-child(2){ animation-delay:.1s; }
+.flip-digit:nth-child(3){ animation-delay:.2s; }
+.flip-digit:nth-child(4){ animation-delay:.3s; }
+.flip-digit:nth-child(5){ animation-delay:.4s; }
+.flip-digit:nth-child(6){ animation-delay:.5s; }
+@keyframes digitBob{
+  0%,100%{ transform:translateY(0); }
+  50%{ transform:translateY(-5px); }
+}
+.flip-digit::before{ content:''; position:absolute; top:50%; left:0; width:100%; height:1px; background:rgba(0,0,0,.65); z-index:2; }
+.flip-digit.flip-pulse{ animation: digitFlip .6s ease-in-out; }
+@keyframes digitFlip{
+  0%{ transform:rotateX(0deg); }
+  45%{ transform:rotateX(90deg); }
+  55%{ transform:rotateX(90deg); }
+  100%{ transform:rotateX(0deg); }
+}
+.flip-digit.idle-flicker{ animation: digitIdleFlip 0.9s ease-in-out; }
+@keyframes digitIdleFlip{
+  0%,100%{ transform:rotateX(0deg); }
+  40%{ transform:rotateX(18deg); }
+  70%{ transform:rotateX(0deg); }
 }
 .admissions-remaining{ font-size:13px; color:var(--muted); margin-top:6px; }
 .admissions-remaining b{ color:var(--orange2); font-family:'Space Grotesk'; font-weight:700; }
@@ -474,6 +557,14 @@ body.tv h1{ font-size:36px; }
 
 <!-- ============ TOP BAR ============ -->
 <canvas id="confettiCanvas"></canvas>
+<div class="milestone-banner-overlay" id="milestoneBannerOverlay">
+  <div class="milestone-banner-card" id="milestoneBannerCard">
+    <div class="milestone-rays"></div>
+    <div class="milestone-emoji">🏆</div>
+    <div class="milestone-banner-title" id="milestoneBannerTitle">1000 ADMISSIONS!</div>
+    <div class="milestone-banner-sub">A landmark moment for the whole team 🎉</div>
+  </div>
+</div>
 <div class="topbar">
   <div class="brand">
     <div class="dial">
@@ -533,7 +624,7 @@ body.tv h1{ font-size:36px; }
   <div class="admissions-icon-badge"><span class="admissions-icon">🎓</span></div>
   <div class="admissions-text">
     <div class="admissions-label">Total Admissions — All Time</div>
-    <div class="admissions-value" id="admissionsCount">0</div>
+    <div class="flip-counter" id="admissionsCount"></div>
     <div class="admissions-remaining" id="admissionsRemaining" style="display:none;"></div>
   </div>
 </div>
@@ -898,29 +989,37 @@ function checkMilestone(name, target, prevAchieved, achieved, cardEl){
   playDing();
 }
 
-function fireConfetti(originEl){
+let __confettiParticles = [];
+let __confettiLoopRunning = false;
+
+function fireConfettiAt(x, y, opts={}){
   const canvas = document.getElementById('confettiCanvas');
   if(!canvas) return;
   canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-  const ctx = canvas.getContext('2d');
-  const rect = originEl ? originEl.getBoundingClientRect() : {left:window.innerWidth/2, top:window.innerHeight/2, width:0, height:0};
-  const originX = rect.left + rect.width/2, originY = rect.top + rect.height/2;
-  const colors = ['#ff6a1a','#ffb020','#f5c451','#34d399','#4f9dff'];
-  const particles = Array.from({length:60}, ()=>({
-    x:originX, y:originY,
-    vx:(Math.random()-0.5)*8, vy:(Math.random()*-8)-2,
-    size:Math.random()*6+3, color:colors[Math.floor(Math.random()*colors.length)],
-    rot:Math.random()*360, vr:(Math.random()-0.5)*10, life:1
+  const colors = opts.colors || ['#ff6a1a','#ffb020','#f5c451','#34d399','#4f9dff'];
+  const count = opts.count || 60;
+  const spread = opts.spread || 8;
+  const newParticles = Array.from({length:count}, ()=>({
+    x, y,
+    vx:(Math.random()-0.5)*spread, vy:(Math.random()*-spread)-2,
+    size:Math.random()*(opts.sizeMax||6)+3, color:colors[Math.floor(Math.random()*colors.length)],
+    rot:Math.random()*360, vr:(Math.random()-0.5)*10, life:1,
+    decay: opts.decay || 0.012
   }));
-  let frame = 0;
+  __confettiParticles.push(...newParticles);
+  if(!__confettiLoopRunning) startConfettiLoop();
+}
+
+function startConfettiLoop(){
+  const canvas = document.getElementById('confettiCanvas');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  __confettiLoopRunning = true;
   function tick(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
-    frame++;
-    let alive = false;
-    particles.forEach(p=>{
+    __confettiParticles.forEach(p=>{
       if(p.life<=0) return;
-      alive = true;
-      p.vy += 0.25; p.x += p.vx; p.y += p.vy; p.rot += p.vr; p.life -= 0.012;
+      p.vy += 0.25; p.x += p.vx; p.y += p.vy; p.rot += p.vr; p.life -= p.decay;
       ctx.save();
       ctx.translate(p.x, p.y); ctx.rotate(p.rot*Math.PI/180);
       ctx.globalAlpha = Math.max(0, p.life);
@@ -928,10 +1027,20 @@ function fireConfetti(originEl){
       ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
       ctx.restore();
     });
-    if(alive && frame < 200) requestAnimationFrame(tick);
-    else ctx.clearRect(0,0,canvas.width,canvas.height);
+    __confettiParticles = __confettiParticles.filter(p=>p.life>0);
+    if(__confettiParticles.length>0){
+      requestAnimationFrame(tick);
+    } else {
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      __confettiLoopRunning = false;
+    }
   }
   tick();
+}
+
+function fireConfetti(originEl){
+  const rect = originEl ? originEl.getBoundingClientRect() : {left:window.innerWidth/2, top:window.innerHeight/2, width:0, height:0};
+  fireConfettiAt(rect.left + rect.width/2, rect.top + rect.height/2);
 }
 
 let __audioCtx = null;
@@ -1016,14 +1125,59 @@ function onSyncFailure(){
 }
 
 function sendHealthAlertEmail(minutesDown){
-  if(CONFIG.SHEET_MODE !== 'json' || !CONFIG.JSON_URL) return; // needs the Apps Script endpoint
+  if(!CONFIG.JSON_URL) return; // needs the Apps Script endpoint (used for writes only now)
   const url = `${CONFIG.JSON_URL}${CONFIG.JSON_URL.includes('?')?'&':'?'}action=healthAlert&minutes=${minutesDown}&_ts=${Date.now()}`;
   fetch(url, {cache:'no-store'}).catch(()=>{ /* best-effort — if this fails too, nothing more we can do client-side */ });
 }
 
+let __lastFlipDigits = null;
+function renderFlipDigits(total){
+  const container = document.getElementById('admissionsCount');
+  if(!container) return;
+  const digits = String(total).split('');
+  const prevDigits = __lastFlipDigits;
+
+  // rebuild boxes only if digit COUNT changed (e.g. 999 -> 1000); otherwise
+  // update in place so we can animate individual digits that changed
+  if(!prevDigits || prevDigits.length !== digits.length){
+    container.innerHTML = digits.map(d => `<div class="flip-digit">${d}</div>`).join('');
+  }
+  const boxes = container.querySelectorAll('.flip-digit');
+  digits.forEach((d,i)=>{
+    const box = boxes[i];
+    if(!box) return;
+    const changed = prevDigits && prevDigits[i] !== d;
+    box.textContent = d;
+    box.classList.remove('idle-flicker');
+    if(changed){
+      box.classList.remove('flip-pulse'); void box.offsetWidth;
+      box.classList.add('flip-pulse');
+      box.addEventListener('animationend', function handler(ev){
+        if(ev.animationName === 'digitFlip'){ box.classList.remove('flip-pulse'); box.removeEventListener('animationend', handler); }
+      });
+    }
+  });
+  __lastFlipDigits = digits;
+}
+
+// keeps the counter feeling "live" even when the total hasn't changed —
+// periodically flickers one digit at a staggered time, like a mechanical
+// counter idling rather than a frozen number
+setInterval(()=>{
+  const container = document.getElementById('admissionsCount');
+  if(!container) return;
+  const boxes = [...container.querySelectorAll('.flip-digit')];
+  if(boxes.length===0) return;
+  const pick = boxes[Math.floor(Math.random()*boxes.length)];
+  pick.classList.remove('idle-flicker'); void pick.offsetWidth;
+  pick.classList.add('idle-flicker');
+  pick.addEventListener('animationend', function handler(ev){
+    if(ev.animationName === 'digitIdleFlip'){ pick.classList.remove('idle-flicker'); pick.removeEventListener('animationend', handler); }
+  });
+}, 4000);
+
 function updateTotalAdmissions(total){
-  const el = document.getElementById('admissionsCount');
-  if(el) countUp(el, total);
+  renderFlipDigits(total);
 
   const remainingEl = document.getElementById('admissionsRemaining');
   if(remainingEl){
@@ -1041,7 +1195,13 @@ function updateTotalAdmissions(total){
   if(lastKnownTotalAdmissions !== null){
     const prevHundreds = Math.floor(lastKnownTotalAdmissions/100);
     const newHundreds = Math.floor(total/100);
-    if(newHundreds > prevHundreds && total > 0){
+    const prevThousands = Math.floor(lastKnownTotalAdmissions/1000);
+    const newThousands = Math.floor(total/1000);
+
+    if(newThousands > prevThousands && total > 0){
+      // grand celebration takes priority — it already includes its own confetti + sound
+      celebrateGrandMilestone(newThousands*1000);
+    } else if(newHundreds > prevHundreds && total > 0){
       playAdmissionsFanfare();
       const hero = document.getElementById('admissionsHero');
       if(hero){
@@ -1053,6 +1213,63 @@ function updateTotalAdmissions(total){
   }
   lastKnownTotalAdmissions = total;
   lsSet('lastKnownTotalAdmissions', total);
+}
+
+// a bigger, separate celebration reserved for round-thousand milestones —
+// full-screen banner, multi-point fireworks, and an extended fanfare
+function celebrateGrandMilestone(milestoneValue){
+  const overlay = document.getElementById('milestoneBannerOverlay');
+  const title = document.getElementById('milestoneBannerTitle');
+  if(title) title.textContent = `${milestoneValue.toLocaleString()} ADMISSIONS!`;
+  if(overlay){
+    overlay.classList.remove('show'); void overlay.offsetWidth;
+    overlay.classList.add('show');
+    setTimeout(()=> overlay.classList.remove('show'), 3700);
+  }
+
+  // fireworks: several bursts at randomized points across the screen, staggered over ~2.5s
+  const burstCount = 8;
+  for(let i=0;i<burstCount;i++){
+    setTimeout(()=>{
+      const x = window.innerWidth * (0.15 + Math.random()*0.7);
+      const y = window.innerHeight * (0.15 + Math.random()*0.5);
+      fireConfettiAt(x, y, { count:70, spread:10, sizeMax:7, decay:0.01 });
+    }, i * 300);
+  }
+
+  playGrandFanfare();
+}
+
+// extended fanfare for the 1000-milestone — layers the regular fanfare
+// with a longer triumphant chord progression underneath
+function playGrandFanfare(){
+  playAdmissionsFanfare();
+  if(lsGet('soundEnabled', true) === false) return;
+  try{
+    __audioCtx = __audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = __audioCtx;
+    const now = ctx.currentTime;
+    // rising triumphant chord progression, layered underneath the fanfare
+    const chords = [
+      [261.63, 329.63, 392.00],   // C major
+      [293.66, 369.99, 440.00],   // D major
+      [329.63, 415.30, 493.88],   // E major
+      [392.00, 493.88, 587.33],   // G major (resolves up, triumphant)
+    ];
+    chords.forEach((chord, ci)=>{
+      chord.forEach(freq=>{
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle'; osc.frequency.value = freq;
+        const start = now + 0.5 + ci*0.35;
+        gain.gain.setValueAtTime(0, start);
+        gain.gain.linearRampToValueAtTime(0.09, start + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.55);
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.start(start); osc.stop(start + 0.6);
+      });
+    });
+  }catch(e){ /* audio blocked — ignore */ }
 }
 
 /* =========================================================================
