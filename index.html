@@ -317,7 +317,7 @@ body.tv-rotate .tv-page.active{ display:block; animation: pageIn .5s ease; }
   position:fixed; inset:0; z-index:90; display:none; align-items:center; justify-content:center;
   background:rgba(0,0,0,0); pointer-events:none;
 }
-.milestone-banner-overlay.show{ display:flex; animation: bannerBgFade 3.6s ease forwards; }
+.milestone-banner-overlay.show{ display:flex; animation: bannerBgFade 4.6s ease forwards; }
 @keyframes bannerBgFade{
   0%{ background:rgba(0,0,0,0); }
   15%{ background:rgba(0,0,0,.55); }
@@ -330,7 +330,7 @@ body.tv-rotate .tv-page.active{ display:block; animation: pageIn .5s ease; }
   border:2px solid rgba(245,196,81,.6); border-radius:32px;
   box-shadow:0 0 80px rgba(245,196,81,.5), 0 30px 80px rgba(0,0,0,.6);
   transform:scale(0.3); opacity:0;
-  animation: bannerPopIn 3.6s cubic-bezier(.34,1.56,.64,1) forwards;
+  animation: bannerPopIn 4.6s cubic-bezier(.34,1.56,.64,1) forwards;
   overflow:hidden;
 }
 @keyframes bannerPopIn{
@@ -360,6 +360,45 @@ body.tv-rotate .tv-page.active{ display:block; animation: pageIn .5s ease; }
   animation: shimmerText 2.5s linear infinite;
 }
 .milestone-banner-sub{ position:relative; z-index:1; color:var(--muted); font-size:15px; margin-top:10px; }
+
+/* expanding shockwave rings from center on trigger */
+.milestone-shockwave{
+  position:absolute; top:50%; left:50%; width:40px; height:40px; margin:-20px 0 0 -20px;
+  border:3px solid rgba(245,196,81,.8); border-radius:50%; opacity:0;
+}
+.milestone-banner-overlay.show .milestone-shockwave{ animation: shockwaveExpand 1.8s ease-out; }
+.milestone-banner-overlay.show .milestone-shockwave.delay1{ animation: shockwaveExpand 1.8s ease-out .25s; }
+.milestone-banner-overlay.show .milestone-shockwave.delay2{ animation: shockwaveExpand 1.8s ease-out .5s; }
+@keyframes shockwaveExpand{
+  0%{ width:40px; height:40px; margin:-20px 0 0 -20px; opacity:1; border-width:4px; }
+  100%{ width:1400px; height:1400px; margin:-700px 0 0 -700px; opacity:0; border-width:1px; }
+}
+
+/* twinkling sparkle field scattered around the card */
+.milestone-sparkle-field{ position:absolute; inset:0; z-index:1; pointer-events:none; }
+.milestone-sparkle-field .spk{
+  position:absolute; font-size:22px; opacity:0; filter:drop-shadow(0 0 6px rgba(245,196,81,.8));
+}
+.milestone-banner-overlay.show .milestone-sparkle-field .spk{ animation: sparkleTwinkle 2.2s ease-in-out infinite; }
+@keyframes sparkleTwinkle{
+  0%,100%{ opacity:0; transform:scale(0.4) rotate(0deg); }
+  50%{ opacity:1; transform:scale(1.1) rotate(20deg); }
+}
+
+/* continuous pulsing glow ring around the card, runs the whole time it's visible */
+.milestone-banner-card{ animation: bannerPopIn 4.6s cubic-bezier(.34,1.56,.64,1) forwards, bannerGlowPulse 1.4s ease-in-out infinite; }
+@keyframes bannerGlowPulse{
+  0%,100%{ box-shadow:0 0 80px rgba(245,196,81,.5), 0 30px 80px rgba(0,0,0,.6); border-color:rgba(245,196,81,.6); }
+  50%{ box-shadow:0 0 130px rgba(245,196,81,.85), 0 30px 80px rgba(0,0,0,.6); border-color:rgba(255,224,138,.95); }
+}
+
+/* extra bounce/wobble on the title text itself while displayed */
+.milestone-banner-title{ animation: shimmerText 2.5s linear infinite, titleWobble 1.6s ease-in-out infinite; }
+@keyframes titleWobble{
+  0%,100%{ transform:scale(1) rotate(0deg); }
+  25%{ transform:scale(1.03) rotate(-1deg); }
+  75%{ transform:scale(1.03) rotate(1deg); }
+}
 
 /* ---------- ambient living background ---------- */
 .ambient-bg{ position:fixed; inset:0; z-index:-1; overflow:hidden; pointer-events:none; }
@@ -558,6 +597,10 @@ body.tv h1{ font-size:36px; }
 <!-- ============ TOP BAR ============ -->
 <canvas id="confettiCanvas"></canvas>
 <div class="milestone-banner-overlay" id="milestoneBannerOverlay">
+  <div class="milestone-shockwave"></div>
+  <div class="milestone-shockwave delay1"></div>
+  <div class="milestone-shockwave delay2"></div>
+  <div class="milestone-sparkle-field" id="milestoneSparkleField"></div>
   <div class="milestone-banner-card" id="milestoneBannerCard">
     <div class="milestone-rays"></div>
     <div class="milestone-emoji">🏆</div>
@@ -999,12 +1042,13 @@ function fireConfettiAt(x, y, opts={}){
   const colors = opts.colors || ['#ff6a1a','#ffb020','#f5c451','#34d399','#4f9dff'];
   const count = opts.count || 60;
   const spread = opts.spread || 8;
+  const shape = opts.shape || 'square';
   const newParticles = Array.from({length:count}, ()=>({
     x, y,
     vx:(Math.random()-0.5)*spread, vy:(Math.random()*-spread)-2,
     size:Math.random()*(opts.sizeMax||6)+3, color:colors[Math.floor(Math.random()*colors.length)],
     rot:Math.random()*360, vr:(Math.random()-0.5)*10, life:1,
-    decay: opts.decay || 0.012
+    decay: opts.decay || 0.012, shape
   }));
   __confettiParticles.push(...newParticles);
   if(!__confettiLoopRunning) startConfettiLoop();
@@ -1024,7 +1068,15 @@ function startConfettiLoop(){
       ctx.translate(p.x, p.y); ctx.rotate(p.rot*Math.PI/180);
       ctx.globalAlpha = Math.max(0, p.life);
       ctx.fillStyle = p.color;
-      ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
+      if(p.shape === 'circle'){
+        ctx.beginPath();
+        ctx.arc(0, 0, p.size/2, 0, Math.PI*2);
+        ctx.fill();
+      } else if(p.shape === 'streamer'){
+        ctx.fillRect(-p.size/5, -p.size*1.6, p.size/2.5, p.size*3.2);
+      } else {
+        ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
+      }
       ctx.restore();
     });
     __confettiParticles = __confettiParticles.filter(p=>p.life>0);
@@ -1221,20 +1273,34 @@ function celebrateGrandMilestone(milestoneValue){
   const overlay = document.getElementById('milestoneBannerOverlay');
   const title = document.getElementById('milestoneBannerTitle');
   if(title) title.textContent = `${milestoneValue.toLocaleString()} ADMISSIONS!`;
+
+  const sparkleField = document.getElementById('milestoneSparkleField');
+  if(sparkleField){
+    const sparkleEmojis = ['✨','⭐','🌟','💫'];
+    sparkleField.innerHTML = Array.from({length:16}, ()=>{
+      const emoji = sparkleEmojis[Math.floor(Math.random()*sparkleEmojis.length)];
+      const top = Math.random()*100, left = Math.random()*100;
+      const delay = (Math.random()*2.2).toFixed(2);
+      return `<span class="spk" style="top:${top}%; left:${left}%; animation-delay:${delay}s;">${emoji}</span>`;
+    }).join('');
+  }
+
   if(overlay){
     overlay.classList.remove('show'); void overlay.offsetWidth;
     overlay.classList.add('show');
-    setTimeout(()=> overlay.classList.remove('show'), 3700);
+    setTimeout(()=> overlay.classList.remove('show'), 4700);
   }
 
-  // fireworks: several bursts at randomized points across the screen, staggered over ~2.5s
-  const burstCount = 8;
+  // fireworks: several bursts at randomized points across the screen, staggered over ~2.7s,
+  // mixing squares, circles, and streamer-shaped particles for more visual variety
+  const burstCount = 11;
   for(let i=0;i<burstCount;i++){
     setTimeout(()=>{
-      const x = window.innerWidth * (0.15 + Math.random()*0.7);
-      const y = window.innerHeight * (0.15 + Math.random()*0.5);
-      fireConfettiAt(x, y, { count:70, spread:10, sizeMax:7, decay:0.01 });
-    }, i * 300);
+      const x = window.innerWidth * (0.1 + Math.random()*0.8);
+      const y = window.innerHeight * (0.1 + Math.random()*0.55);
+      const shape = ['square','circle','streamer'][i % 3];
+      fireConfettiAt(x, y, { count:75, spread:11, sizeMax:8, decay:0.009, shape });
+    }, i * 250);
   }
 
   playGrandFanfare();
@@ -1243,31 +1309,73 @@ function celebrateGrandMilestone(milestoneValue){
 // extended fanfare for the 1000-milestone — layers the regular fanfare
 // with a longer triumphant chord progression underneath
 function playGrandFanfare(){
-  playAdmissionsFanfare();
   if(lsGet('soundEnabled', true) === false) return;
   try{
     __audioCtx = __audioCtx || new (window.AudioContext || window.webkitAudioContext)();
     const ctx = __audioCtx;
     const now = ctx.currentTime;
-    // rising triumphant chord progression, layered underneath the fanfare
+
+    // 1) big opening "hit" — a stacked, punchy chord to announce the moment
+    const hitFreqs = [130.81, 261.63, 329.63, 392.00, 523.25]; // C major stack, 2 octaves
+    hitFreqs.forEach(freq=>{
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sawtooth'; osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.22, now + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 1.1);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(now); osc.stop(now + 1.15);
+    });
+
+    // 2) quick bright arpeggio flourish (reuses the regular ding's character but bigger)
+    playAdmissionsFanfare();
+
+    // 3) rising triumphant chord progression, fuller and louder than before
     const chords = [
-      [261.63, 329.63, 392.00],   // C major
-      [293.66, 369.99, 440.00],   // D major
-      [329.63, 415.30, 493.88],   // E major
-      [392.00, 493.88, 587.33],   // G major (resolves up, triumphant)
+      [261.63, 329.63, 392.00, 523.25],   // C major
+      [293.66, 369.99, 440.00, 587.33],   // D major
+      [329.63, 415.30, 493.88, 659.25],   // E major
+      [392.00, 493.88, 587.33, 783.99],   // G major (resolves up, triumphant)
     ];
     chords.forEach((chord, ci)=>{
       chord.forEach(freq=>{
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'triangle'; osc.frequency.value = freq;
-        const start = now + 0.5 + ci*0.35;
+        const start = now + 0.7 + ci*0.32;
         gain.gain.setValueAtTime(0, start);
-        gain.gain.linearRampToValueAtTime(0.09, start + 0.05);
-        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.55);
+        gain.gain.linearRampToValueAtTime(0.16, start + 0.04);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.6);
         osc.connect(gain); gain.connect(ctx.destination);
-        osc.start(start); osc.stop(start + 0.6);
+        osc.start(start); osc.stop(start + 0.65);
       });
+    });
+
+    // 4) final held resolving chord — big and sustained, the "landing" moment
+    const finalStart = now + 2.1;
+    [392.00, 493.88, 587.33, 783.99, 987.77].forEach(freq=>{
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle'; osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, finalStart);
+      gain.gain.linearRampToValueAtTime(0.2, finalStart + 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.001, finalStart + 2.2);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(finalStart); osc.stop(finalStart + 2.3);
+    });
+
+    // 5) sparkling high bell shimmer over the final chord
+    [1046.50, 1318.51, 1567.98].forEach((freq,i)=>{
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine'; osc.frequency.value = freq;
+      const start = finalStart + 0.15 + i*0.1;
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.1, start + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 1.4);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(start); osc.stop(start + 1.5);
     });
   }catch(e){ /* audio blocked — ignore */ }
 }
