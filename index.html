@@ -938,19 +938,44 @@ function simulateDemoTick(){
 /* =========================================================================
    DATE / KPI MATH
    ========================================================================= */
+// builds a fingerprint of everyone's current Target value — used to detect
+// when it's time to move to a new tracking period
+function computeTargetSignature(){
+  return JSON.stringify(managers.map(m=>[m.name, m.target]).sort((a,b)=> a[0].localeCompare(b[0])));
+}
+
 function dateStats(){
-  // Auto-computed from today's real date — always reflects the CURRENT month,
-  // so this dashboard works unchanged every month, no config edits needed.
   const today = new Date();
   const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const start = new Date(today.getFullYear(), today.getMonth(), 1);
-  const end = new Date(today.getFullYear(), today.getMonth()+1, 0);
-  const monthLabel = today.toLocaleDateString('en-GB', {month:'long', year:'numeric'}).toUpperCase();
+
+  // ---- period lock ----
+  // The dashboard does NOT automatically roll into a new day/month just
+  // because the calendar changed. It keeps showing the last active period
+  // frozen (days-passed maxed out, period unchanged) until the Target
+  // column is actually edited — that's the signal a new period has begun.
+  // Editing Achieved, Revised Target, or Weekly Target does NOT trigger
+  // this; only a change to the core Target column does.
+  const currentSig = computeTargetSignature();
+  let lock = lsGet('periodLock', null);
+  if(!lock || lock.targetSignature !== currentSig){
+    lock = { targetSignature: currentSig, periodStart: todayMid.toISOString().slice(0,10) };
+    lsSet('periodLock', lock);
+  }
+  const lockedDate = new Date(lock.periodStart + 'T00:00:00');
+  const lockedYear = lockedDate.getFullYear(), lockedMonth = lockedDate.getMonth();
+
+  const start = new Date(lockedYear, lockedMonth, 1);
+  const end = new Date(lockedYear, lockedMonth+1, 0);
+  // once real "today" moves past the locked month without a Target change,
+  // freeze progress at the last day of that month instead of overflowing
+  // into negative days-left or silently drifting into the new month
+  const effectiveToday = todayMid > end ? end : todayMid;
+  const monthLabel = start.toLocaleDateString('en-GB', {month:'long', year:'numeric'}).toUpperCase();
 
   const totalDays = Math.round((end-start)/86400000)+1;
   // days FULLY elapsed before today — today itself is still in progress,
   // so it's not counted as "passed"; it's counted in daysLeft instead
-  let daysPassed = Math.round((todayMid-start)/86400000);
+  let daysPassed = Math.round((effectiveToday-start)/86400000);
   daysPassed = Math.max(0, Math.min(totalDays, daysPassed));
   const daysLeft = Math.max(0, totalDays - daysPassed);
 
