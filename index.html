@@ -280,6 +280,7 @@ body{ padding: 28px clamp(14px,3vw,40px) 60px; }
 .modal-actions{ display:flex; gap:10px; margin-top:16px; }
 .btn{ flex:1; padding:10px 14px; border-radius:10px; border:none; cursor:pointer; font-weight:600; font-size:13px; }
 .btn-primary{ background:linear-gradient(90deg,var(--orange),var(--gold)); color:#180c00; }
+.btn-ghost{ background:transparent; border:1px solid var(--glass-brd); color:var(--white); }
 
 /* ---------- TV mode ---------- */
 body.tv .icon-btn, body.tv .search-wrap, body.tv .section-head .tag{ display:none !important; }
@@ -640,12 +641,63 @@ body.tv h1{ font-size:36px; }
     <button class="icon-btn" id="btnSound" title="Toggle milestone sound">🔔</button>
     <button class="icon-btn" id="btnQr" title="Show QR code to this dashboard">📱</button>
     <button class="icon-btn" id="btnCsv" title="Export CSV snapshot">📊</button>
+    <button class="icon-btn" id="btnWhatsapp" title="Share to WhatsApp (Admin)">💬</button>
+    <button class="icon-btn" id="btnSettings" title="Settings (Admin)">⚙️</button>
     <button class="icon-btn" id="btnTv" title="TV Display Mode">🖥️</button>
     <button class="icon-btn" id="btnPng" title="Export PNG">📤</button>
     <button class="icon-btn" id="btnPdf" title="Export PDF">📄</button>
   </div>
 </div>
 
+<!-- ============ SETTINGS MODAL (Admin, PIN-protected) ============ -->
+<div class="modal-backdrop" id="settingsBackdrop">
+  <div class="modal" style="width:min(460px,92vw); text-align:left;">
+    <h3 class="font-display" style="margin-bottom:6px;">⚙️ Dashboard Settings</h3>
+    <p style="font-size:12px; color:var(--muted); margin-bottom:16px;">Changes save to this browser and apply immediately — no file editing needed.</p>
+
+    <label style="font-size:12px; color:var(--muted); display:block; margin:10px 0 5px;">Sheet Mode</label>
+    <select id="settingsSheetMode" style="width:100%; background:#15161f; border:1px solid var(--glass-brd); color:var(--white); border-radius:10px; padding:10px 12px; font-size:13px;">
+      <option value="json">Apps Script (json)</option>
+      <option value="csv">Published CSV link</option>
+      <option value="gviz">Regular share link (gviz)</option>
+    </select>
+
+    <label style="font-size:12px; color:var(--muted); display:block; margin:10px 0 5px;">Apps Script URL (JSON_URL)</label>
+    <input type="text" id="settingsJsonUrl" style="width:100%; background:#15161f; border:1px solid var(--glass-brd); color:var(--white); border-radius:10px; padding:10px 12px; font-size:13px;" placeholder="https://script.google.com/macros/s/.../exec">
+
+    <label style="font-size:12px; color:var(--muted); display:block; margin:10px 0 5px;">Published CSV URL</label>
+    <input type="text" id="settingsCsvUrl" style="width:100%; background:#15161f; border:1px solid var(--glass-brd); color:var(--white); border-radius:10px; padding:10px 12px; font-size:13px;" placeholder="https://docs.google.com/.../pub?output=csv">
+
+    <div style="display:flex; gap:12px; margin-top:10px;">
+      <div style="flex:1;">
+        <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:5px;">Refresh Interval (seconds)</label>
+        <input type="number" id="settingsRefreshSec" min="5" style="width:100%; background:#15161f; border:1px solid var(--glass-brd); color:var(--white); border-radius:10px; padding:10px 12px; font-size:13px;">
+      </div>
+      <div style="flex:1;">
+        <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:5px;">TV Exit / Admin PIN</label>
+        <input type="text" id="settingsPin" style="width:100%; background:#15161f; border:1px solid var(--glass-brd); color:var(--white); border-radius:10px; padding:10px 12px; font-size:13px;">
+      </div>
+    </div>
+
+    <div class="modal-actions" style="margin-top:20px;">
+      <button class="btn btn-ghost" id="btnCancelSettings">Cancel</button>
+      <button class="btn btn-primary" id="btnSaveSettings">Save & Apply</button>
+    </div>
+    <small style="display:block; margin-top:10px; color:var(--muted); font-size:11px;">These settings are saved only in this browser. To make them permanent for everyone, tell me the values and I'll bake them into the file.</small>
+  </div>
+</div>
+
+<!-- ============ WHATSAPP SHARE PREVIEW MODAL ============ -->
+<div class="modal-backdrop" id="whatsappBackdrop">
+  <div class="modal" style="width:min(360px,92vw); text-align:center;">
+    <h3 class="font-display" style="margin-bottom:14px;">💬 Share Today's Standings</h3>
+    <div id="whatsappPreviewWrap" style="border-radius:12px; overflow:hidden; margin-bottom:14px; max-height:340px; overflow-y:auto;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="btnCloseWhatsapp">Close</button>
+      <button class="btn btn-primary" id="btnSendWhatsapp">Share / Download</button>
+    </div>
+  </div>
+</div>
 <!-- ============ QR MODAL ============ -->
 <div class="modal-backdrop" id="qrBackdrop">
   <div class="modal" style="text-align:center;">
@@ -871,6 +923,16 @@ function lsGet(key, fallback=null){
 function lsSet(key, value){
   try{ localStorage.setItem(key, JSON.stringify(value)); }catch(e){ /* storage unavailable — ignore */ }
 }
+
+// admin settings saved from the in-dashboard Settings panel override the
+// hardcoded defaults above, but only in this browser
+(function applySettingsOverride(){
+  const override = lsGet('adminSettingsOverride', null);
+  if(!override) return;
+  Object.keys(override).forEach(key=>{
+    if(key in CONFIG) CONFIG[key] = override[key];
+  });
+})();
 
 let managers = [];       // live data: {name, target, achieved, prevAchieved, history:[]}
 let tls = [];             // Team Leads: {name, target, achieved, prevAchieved, reportsTo}
@@ -2665,6 +2727,111 @@ document.addEventListener('click', (e)=>{
       else{ alert(`Could not save — make sure your Apps Script has the "${action}" action added.`); }
     })
     .catch(()=>{ alert('Could not reach the sheet. Check your connection and try again.'); });
+});
+
+/* =========================================================================
+   SETTINGS PANEL — PIN-protected, saves to this browser and applies live
+   ========================================================================= */
+document.getElementById('btnSettings').addEventListener('click', ()=>{
+  const pin = prompt('Enter admin PIN to open settings:');
+  if(pin === null) return;
+  if(pin !== CONFIG.TV_EXIT_PIN){ alert('Incorrect PIN.'); return; }
+
+  document.getElementById('settingsSheetMode').value = CONFIG.SHEET_MODE;
+  document.getElementById('settingsJsonUrl').value = CONFIG.JSON_URL || '';
+  document.getElementById('settingsCsvUrl').value = CONFIG.CSV_URL || '';
+  document.getElementById('settingsRefreshSec').value = Math.round(CONFIG.REFRESH_MS/1000);
+  document.getElementById('settingsPin').value = CONFIG.TV_EXIT_PIN || '';
+  document.getElementById('settingsBackdrop').classList.add('open');
+});
+
+document.getElementById('btnCancelSettings').addEventListener('click', ()=>{
+  document.getElementById('settingsBackdrop').classList.remove('open');
+});
+
+document.getElementById('btnSaveSettings').addEventListener('click', ()=>{
+  const sheetMode = document.getElementById('settingsSheetMode').value;
+  const jsonUrl = document.getElementById('settingsJsonUrl').value.trim();
+  const csvUrl = document.getElementById('settingsCsvUrl').value.trim();
+  const refreshSec = Math.max(5, Number(document.getElementById('settingsRefreshSec').value) || 25);
+  const pin = document.getElementById('settingsPin').value.trim() || '1234';
+
+  const override = {
+    SHEET_MODE: sheetMode,
+    JSON_URL: jsonUrl,
+    CSV_URL: csvUrl,
+    REFRESH_MS: refreshSec * 1000,
+    TV_EXIT_PIN: pin
+  };
+  lsSet('adminSettingsOverride', override);
+  Object.assign(CONFIG, override);
+
+  // apply immediately: restart the sync loop with the new interval and resync now
+  clearInterval(refreshTimer);
+  refreshTimer = setInterval(()=>{ syncData().catch(err=>console.warn('syncData failed:', err)); }, CONFIG.REFRESH_MS);
+  syncData().catch(err=>console.warn('syncData failed:', err));
+
+  document.getElementById('settingsBackdrop').classList.remove('open');
+});
+
+/* =========================================================================
+   WHATSAPP SHARE (Admin, PIN-protected) — captures a snapshot of the
+   leaderboard and shares it via the Web Share API where supported,
+   otherwise falls back to a direct download
+   ========================================================================= */
+document.getElementById('btnWhatsapp').addEventListener('click', async ()=>{
+  const pin = prompt('Enter admin PIN to share standings:');
+  if(pin === null) return;
+  if(pin !== CONFIG.TV_EXIT_PIN){ alert('Incorrect PIN.'); return; }
+
+  if(typeof html2canvas === 'undefined'){
+    alert('Export library did not load (blocked CDN). Try refreshing and check your network.');
+    return;
+  }
+
+  const target = document.getElementById('leaderboard') || document.body;
+  const canvas = await html2canvas(target, {backgroundColor:'#07070b', scale:2});
+  const previewWrap = document.getElementById('whatsappPreviewWrap');
+  previewWrap.innerHTML = '';
+  const img = document.createElement('img');
+  img.src = canvas.toDataURL('image/png');
+  img.style.width = '100%';
+  previewWrap.appendChild(img);
+
+  document.getElementById('whatsappBackdrop').dataset.canvas = 'ready';
+  window.__whatsappCanvas = canvas;
+  document.getElementById('whatsappBackdrop').classList.add('open');
+});
+
+document.getElementById('btnCloseWhatsapp').addEventListener('click', ()=>{
+  document.getElementById('whatsappBackdrop').classList.remove('open');
+});
+
+document.getElementById('btnSendWhatsapp').addEventListener('click', async ()=>{
+  const canvas = window.__whatsappCanvas;
+  if(!canvas) return;
+
+  canvas.toBlob(async (blob)=>{
+    const agg = computeAggregate();
+    const captionText = `📊 Today's Standings — ${agg.totalAchieved}/${agg.totalTarget} (${agg.pct.toFixed(1)}%)`;
+    const file = new File([blob], `standings-${Date.now()}.png`, {type:'image/png'});
+
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      try{
+        await navigator.share({ files:[file], title:'Today\'s Standings', text: captionText });
+        document.getElementById('whatsappBackdrop').classList.remove('open');
+        return;
+      }catch(e){ /* user cancelled share sheet — fall through to download */ }
+    }
+
+    // fallback for browsers without file-sharing support (most desktops)
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `standings-${Date.now()}.png`;
+    link.click();
+    alert('Image downloaded — attach it manually to your WhatsApp message.\n\nSuggested caption:\n' + captionText);
+    document.getElementById('whatsappBackdrop').classList.remove('open');
+  }, 'image/png');
 });
 
 document.getElementById('btnQr').addEventListener('click', ()=>{
