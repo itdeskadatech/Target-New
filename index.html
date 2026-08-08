@@ -311,6 +311,42 @@ body.tv-rotate .tv-page.active{ display:block; animation: pageIn .5s ease; }
 .consistency-tag.consistency-mid{ color:var(--orange2); }
 .consistency-tag.consistency-low{ color:var(--muted); }
 
+/* ---------- counselor team target + incentive ---------- */
+.team-target-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(300px,1fr)); gap:16px; }
+.team-target-card{
+  background:var(--glass); border:1px solid var(--glass-brd); backdrop-filter:blur(18px);
+  border-radius:var(--radius); padding:20px; box-shadow:var(--shadow); position:relative; overflow:hidden;
+}
+.team-target-card.bonus-earned{ border-color:rgba(52,211,153,.5); box-shadow:0 0 0 1px rgba(52,211,153,.2), 0 20px 50px rgba(52,211,153,.12); }
+.tt-head{ display:flex; align-items:center; gap:12px; margin-bottom:16px; }
+.tt-avatar{
+  width:42px; height:42px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center;
+  background:linear-gradient(135deg,var(--orange),var(--gold)); font-family:'Space Grotesk'; font-weight:700; font-size:15px; color:#160b00;
+}
+.tt-name{ font-family:'Space Grotesk'; font-weight:600; font-size:15.5px; }
+.tt-sub{ font-size:11px; color:var(--muted); margin-top:2px; }
+.tt-stats{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+.tt-stat{ text-align:center; background:rgba(255,255,255,.03); border-radius:12px; padding:10px 4px; }
+.tt-stat .v{ font-family:'Space Grotesk'; font-weight:700; font-size:18px; }
+.tt-stat .l{ font-size:9px; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; margin-top:2px; }
+.tt-stat.achv .v{ color:var(--green); }
+.tt-stat.rem .v{ color:var(--blue); }
+.tt-progress-track{ height:9px; border-radius:8px; background:rgba(255,255,255,.06); overflow:hidden; margin-top:14px; }
+.tt-progress-fill{ height:100%; border-radius:8px; background:linear-gradient(90deg,var(--orange),var(--gold)); transition:width 1.1s cubic-bezier(.4,0,.2,1); }
+.tt-progress-fill.maxed{ background:linear-gradient(90deg,var(--green),#5eead4); }
+.tt-bonus-banner{
+  margin-top:14px; padding:12px 14px; border-radius:12px; text-align:center;
+  background:linear-gradient(120deg, rgba(52,211,153,.18), rgba(52,211,153,.06));
+  border:1px solid rgba(52,211,153,.4); animation: bonusGlow 2s ease-in-out infinite;
+}
+@keyframes bonusGlow{
+  0%,100%{ box-shadow:0 0 0 rgba(52,211,153,0); }
+  50%{ box-shadow:0 0 20px rgba(52,211,153,.35); }
+}
+.tt-bonus-banner .tt-bonus-title{ font-size:11px; color:var(--green); font-weight:700; letter-spacing:.4px; text-transform:uppercase; }
+.tt-bonus-banner .tt-bonus-amount{ font-family:'Space Grotesk'; font-weight:800; font-size:22px; color:var(--green); margin-top:4px; }
+.tt-bonus-banner .tt-bonus-detail{ font-size:10.5px; color:var(--muted); margin-top:2px; }
+
 #confettiCanvas{ position:fixed; inset:0; pointer-events:none; z-index:80; }
 
 /* ---------- grand milestone banner (e.g. every 1000 admissions) ---------- */
@@ -637,7 +673,6 @@ body.tv h1{ font-size:36px; }
   </div>
   <div class="status-cluster">
     <div class="pill"><span class="live-dot"></span> <span id="liveLabel">LIVE · DEMO DATA</span></div>
-    <div class="pill" id="momChip" style="display:none;">📈 vs last month: <b id="momValue" style="margin-left:4px;">-</b></div>
     <button class="icon-btn" id="btnSound" title="Toggle milestone sound">🔔</button>
     <button class="icon-btn" id="btnQr" title="Show QR code to this dashboard">📱</button>
     <button class="icon-btn" id="btnCsv" title="Export CSV snapshot">📊</button>
@@ -805,6 +840,14 @@ body.tv h1{ font-size:36px; }
   <div class="leaderboard" id="topCounselors"></div>
 </div>
 
+<!-- ============ COUNSELOR TEAM TARGETS + INCENTIVE (only shown if the sheet has a "Team Target" column) ============ -->
+<div class="tv-page" id="page-teamtarget" style="display:none;">
+  <div class="section-head">
+    <h2>🎯 Counselor Targets <span class="tag">Incentive Tracker</span></h2>
+  </div>
+  <div class="team-target-grid" id="teamTargetGrid"></div>
+</div>
+
 <!-- ============ WEEKLY TARGETS (only shown if the sheet has a "Weekly" column) ============ -->
 <div class="tv-page" id="page-weekly" style="display:none;">
   <div class="section-head">
@@ -875,16 +918,6 @@ body.tv h1{ font-size:36px; }
       <h3>📉 Daily Progress Trend</h3>
       <canvas id="lineChart"></canvas>
     </div>
-  </div>
-</div>
-
-<!-- ============ MONTH-OVER-MONTH COMPARISON ============ -->
-<div class="tv-page" id="page-mom">
-  <div class="section-head"><h2>🗓️ Month-over-Month Comparison <span class="tag">Auto-archived</span></h2></div>
-  <div class="mom-summary" id="momSummary"></div>
-  <div class="chart-card" style="margin-top:14px;">
-    <h3>📊 Per-Manager: This Month vs Last Month</h3>
-    <canvas id="momChart"></canvas>
   </div>
 </div>
 
@@ -1009,6 +1042,7 @@ function computeTargetSignature(){
 function dateStats(){
   const today = new Date();
   const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const fmt = d => d.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'});
 
   // ---- period lock ----
   // The dashboard does NOT automatically roll into a new day/month just
@@ -1017,12 +1051,36 @@ function dateStats(){
   // column is actually edited — that's the signal a new period has begun.
   // Editing Achieved, Revised Target, or Weekly Target does NOT trigger
   // this; only a change to the core Target column does.
+  //
+  // On the very FIRST time this dashboard runs in a browser, there is no
+  // "previous period" to freeze on — so instead of guessing, it just
+  // remembers today's Target values as a baseline and waits. Counting only
+  // begins once Target actually changes from that baseline.
   const currentSig = computeTargetSignature();
+  let baseline = lsGet('targetBaseline', null);
+  if(baseline === null){
+    lsSet('targetBaseline', currentSig);
+    baseline = currentSig;
+  }
+
   let lock = lsGet('periodLock', null);
-  if(!lock || lock.targetSignature !== currentSig){
+  if(!lock){
+    if(currentSig !== baseline){
+      lock = { targetSignature: currentSig, periodStart: todayMid.toISOString().slice(0,10) };
+      lsSet('periodLock', lock);
+    } else {
+      // nothing has changed since baseline yet — tracking hasn't started
+      return {
+        totalDays:0, daysPassed:0, daysLeft:0,
+        todayStr: fmt(todayMid), periodStr:'Not started — edit Target to begin',
+        monthLabel:'NOT STARTED', start: todayMid, end: todayMid, notStarted:true
+      };
+    }
+  } else if(lock.targetSignature !== currentSig){
     lock = { targetSignature: currentSig, periodStart: todayMid.toISOString().slice(0,10) };
     lsSet('periodLock', lock);
   }
+
   const lockedDate = new Date(lock.periodStart + 'T00:00:00');
   const lockedYear = lockedDate.getFullYear(), lockedMonth = lockedDate.getMonth();
 
@@ -1041,7 +1099,6 @@ function dateStats(){
   daysPassed = Math.max(0, Math.min(totalDays, daysPassed));
   const daysLeft = Math.max(0, totalDays - daysPassed);
 
-  const fmt = d => d.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'});
   return { totalDays, daysPassed, daysLeft, todayStr: fmt(todayMid), periodStr: `${fmt(start)} – ${fmt(end)}`, monthLabel, start, end };
 }
 
@@ -1474,86 +1531,6 @@ function playGrandFanfare(){
 // and shows a "vs last month" comparison once a previous month's data exists.
 // No sheet changes needed — this builds up automatically over time as the
 // dashboard is opened during each month.
-function monthKey(year, month){ return `monthArchive:${year}-${String(month+1).padStart(2,'0')}`; }
-
-// normalizes older archive format (a plain number) into the newer detailed object
-function normalizeArchive(raw){
-  if(raw === null || raw === undefined) return null;
-  if(typeof raw === 'number') return { totalTarget:0, totalAchieved:raw, perManager:{} };
-  return raw;
-}
-
-function updateMonthArchive(ds, agg){
-  const now = new Date();
-  const perManager = {};
-  managers.forEach(m=>{ perManager[m.name] = { target:m.target, achieved:m.achieved }; });
-  lsSet(monthKey(now.getFullYear(), now.getMonth()), {
-    totalTarget: agg.totalTarget, totalAchieved: agg.totalAchieved, perManager, updatedAt: Date.now()
-  });
-
-  const prevDate = new Date(now.getFullYear(), now.getMonth()-1, 1);
-  const prev = normalizeArchive(lsGet(monthKey(prevDate.getFullYear(), prevDate.getMonth())));
-  const chip = document.getElementById('momChip');
-  const val = document.getElementById('momValue');
-  if(prev && prev.totalAchieved > 0){
-    const diffPct = ((agg.totalAchieved - prev.totalAchieved)/prev.totalAchieved*100);
-    const arrow = diffPct >= 0 ? '▲' : '▼';
-    val.textContent = `${arrow} ${Math.abs(diffPct).toFixed(1)}% (prev: ${prev.totalAchieved})`;
-    val.style.color = diffPct >= 0 ? 'var(--green)' : '#ff8fa3';
-    chip.style.display = 'flex';
-  } else {
-    chip.style.display = 'none';
-  }
-
-  renderMomSection(ds, agg, prev);
-}
-
-/* =========================================================================
-   RENDER: MONTH-OVER-MONTH COMPARISON SECTION
-   ========================================================================= */
-let momChart = null;
-function renderMomSection(ds, agg, prev){
-  const summaryEl = document.getElementById('momSummary');
-  if(!summaryEl) return;
-
-  const thisPct = agg.totalTarget ? (agg.totalAchieved/agg.totalTarget*100) : 0;
-
-  if(!prev || prev.totalAchieved <= 0){
-    summaryEl.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">
-      No archived data for last month yet — this section fills in automatically once a full month has passed
-      with the dashboard open at least once. This month's numbers are already being saved as you go.
-    </div>`;
-    if(chartsReady && momChart){ momChart.data.labels=[]; momChart.data.datasets.forEach(d=>d.data=[]); momChart.update(); }
-    return;
-  }
-
-  const prevPct = prev.totalTarget ? (prev.totalAchieved/prev.totalTarget*100) : 0;
-  const diffPct = ((agg.totalAchieved - prev.totalAchieved)/prev.totalAchieved*100);
-  const up = diffPct >= 0;
-
-  summaryEl.innerHTML = `
-    <div class="mom-card this-month">
-      <div class="mom-label">This Month So Far</div>
-      <div class="mom-value">${agg.totalAchieved}</div>
-      <div class="mom-sub">of ${agg.totalTarget} target · ${thisPct.toFixed(1)}% · Day ${ds.daysPassed}/${ds.totalDays}</div>
-      <div class="mom-delta ${up?'up':'down'}">${up?'▲':'▼'} ${Math.abs(diffPct).toFixed(1)}% vs last month</div>
-    </div>
-    <div class="mom-card last-month">
-      <div class="mom-label">Last Month (Final)</div>
-      <div class="mom-value">${prev.totalAchieved}</div>
-      <div class="mom-sub">of ${prev.totalTarget||'—'} target · ${prev.totalTarget?prevPct.toFixed(1)+'%':'—'}</div>
-    </div>
-  `;
-
-  if(chartsReady && momChart){
-    const names = Array.from(new Set([...Object.keys(prev.perManager||{}), ...managers.map(m=>m.name)]));
-    momChart.data.labels = names;
-    momChart.data.datasets[0].data = names.map(n => managers.find(m=>m.name===n)?.achieved || 0);
-    momChart.data.datasets[1].data = names.map(n => prev.perManager?.[n]?.achieved || 0);
-    momChart.update();
-  }
-}
-
 function renderHeaderAndKpis(){
   const ds = dateStats();
   document.getElementById('monthLabel').textContent = ds.monthLabel;
@@ -1578,7 +1555,6 @@ function renderHeaderAndKpis(){
   document.getElementById('kDaysPassedSub').textContent = `of ${ds.totalDays} days (from ${ds.start.toLocaleDateString('en-GB',{day:'2-digit',month:'short'})})`;
   document.getElementById('kDaysLeftSub').textContent = `till ${ds.end.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}`;
 
-  updateMonthArchive(ds, agg);
   const totalAdmissionsValue = lifetimeAdmissionsFromSheet !== null ? lifetimeAdmissionsFromSheet : demoLifetimeAdmissions;
   updateTotalAdmissions(totalAdmissionsValue);
 
@@ -2049,6 +2025,80 @@ function renderTopCounselors(){
 }
 
 /* =========================================================================
+   RENDER: COUNSELOR TEAM TARGETS + INCENTIVE — entirely hidden unless at
+   least one manager has a "Team Target" value in the sheet. Team Achieved
+   is the sum of that manager's Counselors' Achieved (not the manager's own
+   Achieved, and not Team Leads). If Achieved exceeds Team Target and an
+   "Incentive" per-extra rate is set, shows the bonus earned so far.
+   ========================================================================= */
+function renderTeamTargets(){
+  const page = document.getElementById('page-teamtarget');
+  const grid = document.getElementById('teamTargetGrid');
+  if(!page || !grid) return;
+
+  if(counselors.length === 0){
+    page.style.display = 'none';
+    grid.innerHTML = '';
+    return;
+  }
+  page.style.display = '';
+
+  const filtered = counselors.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  if(filtered.length === 0){
+    grid.innerHTML = `<div class="empty-state">No matches for "${searchTerm}"</div>`;
+    return;
+  }
+
+  const sorted = [...filtered].sort((a,b)=>{
+    const aPct = a.target ? a.achieved/a.target : 0;
+    const bPct = b.target ? b.achieved/b.target : 0;
+    return bPct - aPct;
+  });
+
+  grid.innerHTML = '';
+  sorted.forEach(c=>{
+    const manager = managers.find(m => m.name === c.reportsTo);
+    const incentiveRate = manager ? manager.incentivePerExtra : null;
+
+    const remaining = Math.max(0, c.target - c.achieved);
+    const extra = Math.max(0, c.achieved - c.target);
+    const pct = c.target ? (c.achieved/c.target*100) : 0;
+    const bonusEarned = extra > 0 && incentiveRate ? extra * incentiveRate : 0;
+
+    const card = document.createElement('div');
+    card.className = 'team-target-card' + (bonusEarned>0 ? ' bonus-earned' : '');
+    card.innerHTML = `
+      <div class="tt-head">
+        <div class="tt-avatar">${initials(c.name)}</div>
+        <div>
+          <div class="tt-name">${c.name}</div>
+          <div class="tt-sub">Reports to ${c.reportsTo || '—'}</div>
+        </div>
+      </div>
+      <div class="tt-stats">
+        <div class="tt-stat"><div class="v">${c.target}</div><div class="l">Target</div></div>
+        <div class="tt-stat achv"><div class="v">${c.achieved}</div><div class="l">Achieved</div></div>
+        <div class="tt-stat rem"><div class="v">${remaining}</div><div class="l">Remaining</div></div>
+      </div>
+      <div class="tt-progress-track"><div class="tt-progress-fill ${pct>=100?'maxed':''}" style="width:${Math.min(100,pct)}%"></div></div>
+      ${bonusEarned>0 ? `
+        <div class="tt-bonus-banner">
+          <div class="tt-bonus-title">🎉 Target Exceeded — Bonus Earned</div>
+          <div class="tt-bonus-amount">₹${bonusEarned.toLocaleString()}</div>
+          <div class="tt-bonus-detail">${extra} extra admission${extra===1?'':'s'} × ₹${incentiveRate}/extra</div>
+        </div>
+      ` : extra>0 ? `
+        <div class="tt-bonus-banner" style="background:rgba(245,196,81,.08); border-color:rgba(245,196,81,.35);">
+          <div class="tt-bonus-title" style="color:var(--gold);">🎯 ${extra} Over Target</div>
+          <div class="tt-bonus-detail">Set an "Incentive" value on ${c.reportsTo || 'their manager'}'s row to auto-calculate the bonus</div>
+        </div>
+      ` : ''}
+    `;
+    grid.appendChild(card);
+  });
+}
+
+/* =========================================================================
    RENDER: WEEKLY TARGETS — entirely hidden unless at least one manager
    has a "Weekly" column value in the sheet. Weekly achieved is measured
    from the same Monday baseline used for the Weekly MVP badge.
@@ -2209,19 +2259,6 @@ function initCharts(){
       animation:{duration:900, easing:'easeOutCubic'} }
   });
 
-  const ctxM = document.getElementById('momChart');
-  if(ctxM){
-    momChart = new Chart(ctxM, {
-      type:'bar',
-      data:{ labels:[], datasets:[
-        { label:'This Month', data:[], backgroundColor:'#ff8c2a', borderRadius:8, maxBarThickness:28 },
-        { label:'Last Month', data:[], backgroundColor:'#4f9dff', borderRadius:8, maxBarThickness:28 }
-      ]},
-      options:{ plugins:{legend:{position:'bottom', labels:{boxWidth:10,padding:14}}},
-        scales:{ x:{grid:{display:false}}, y:{grid:{color:'rgba(255,255,255,.06)'}} },
-        animation:{duration:900, easing:'easeOutCubic'} }
-    });
-  }
 
   chartsReady = true;
 }
@@ -2353,12 +2390,16 @@ function rowsToManagers(rows){
   const weeklyAchievedIdx = header.findIndex(c=>c.includes('weekly') && c.includes('achiev'));
   const revisedTargetIdx = header.findIndex(c=>c.includes('revised'));
   const roleIdx = header.findIndex(c=>c==='role' || c.includes('role'));
+  const teamTargetIdx = header.findIndex(c=>c.includes('team') && c.includes('target'));
+  const incentiveIdx = header.findIndex(c=>c.includes('incentive'));
   if(nameIdx<0 || targetIdx<0 || achievedIdx<0) throw new Error('columns-not-found');
 
   const people = rows.slice(1).map(r=>{
     const weeklyRaw = weeklyTargetIdx>=0 ? Number((r[weeklyTargetIdx]||'').replace(/,/g,'')) : NaN;
     const weeklyAchRaw = weeklyAchievedIdx>=0 ? Number((r[weeklyAchievedIdx]||'').replace(/,/g,'')) : NaN;
     const revisedRaw = revisedTargetIdx>=0 ? Number((r[revisedTargetIdx]||'').replace(/,/g,'')) : NaN;
+    const teamTargetRaw = teamTargetIdx>=0 ? Number((r[teamTargetIdx]||'').replace(/,/g,'')) : NaN;
+    const incentiveRaw = incentiveIdx>=0 ? Number((r[incentiveIdx]||'').replace(/,/g,'')) : NaN;
     return {
       name: (r[nameIdx]||'').trim(),
       target: Number((r[targetIdx]||'0').replace(/,/g,'')) || 0,
@@ -2367,7 +2408,9 @@ function rowsToManagers(rows){
       role: roleIdx>=0 ? (r[roleIdx]||'').trim().toLowerCase() : '',
       weeklyTarget: !isNaN(weeklyRaw) && weeklyRaw>0 ? weeklyRaw : null,
       weeklyAchievedFromSheet: weeklyAchievedIdx>=0 && r[weeklyAchievedIdx]!=='' && !isNaN(weeklyAchRaw) ? weeklyAchRaw : null,
-      revisedTarget: revisedTargetIdx>=0 && r[revisedTargetIdx]!=='' && !isNaN(revisedRaw) && revisedRaw>0 ? revisedRaw : null
+      revisedTarget: revisedTargetIdx>=0 && r[revisedTargetIdx]!=='' && !isNaN(revisedRaw) && revisedRaw>0 ? revisedRaw : null,
+      teamTarget: teamTargetIdx>=0 && r[teamTargetIdx]!=='' && !isNaN(teamTargetRaw) && teamTargetRaw>0 ? teamTargetRaw : null,
+      incentivePerExtra: incentiveIdx>=0 && r[incentiveIdx]!=='' && !isNaN(incentiveRaw) && incentiveRaw>0 ? incentiveRaw : null
     };
   }).filter(r=>r.name && !/^total$/i.test(r.name));
 
@@ -2409,11 +2452,15 @@ async function fetchSheetData(){
     const weeklyAchievedKey = Object.keys(data[0]).find(k=>k.toLowerCase().includes('weekly') && k.toLowerCase().includes('achiev'));
     const revisedTargetKey = findKey('revised');
     const roleKey = findKey('role');
+    const teamTargetKey = Object.keys(data[0]).find(k=>{ const kl=k.toLowerCase(); return kl.includes('team') && kl.includes('target'); });
+    const incentiveKey = findKey('incentive');
     if(!nameKey || !targetKey || !achievedKey) throw new Error('columns-not-found');
     const people = data.map(r=>{
       const weeklyRaw = weeklyTargetKey ? Number(r[weeklyTargetKey]) : NaN;
       const weeklyAchRaw = weeklyAchievedKey ? Number(r[weeklyAchievedKey]) : NaN;
       const revisedRaw = revisedTargetKey ? Number(r[revisedTargetKey]) : NaN;
+      const teamTargetRaw = teamTargetKey ? Number(r[teamTargetKey]) : NaN;
+      const incentiveRaw = incentiveKey ? Number(r[incentiveKey]) : NaN;
       return {
         name: String(r[nameKey]||'').trim(),
         target: Number(r[targetKey])||0,
@@ -2422,7 +2469,9 @@ async function fetchSheetData(){
         role: roleKey ? String(r[roleKey]||'').trim().toLowerCase() : '',
         weeklyTarget: !isNaN(weeklyRaw) && weeklyRaw>0 ? weeklyRaw : null,
         weeklyAchievedFromSheet: weeklyAchievedKey && r[weeklyAchievedKey]!=='' && r[weeklyAchievedKey]!=null && !isNaN(weeklyAchRaw) ? weeklyAchRaw : null,
-        revisedTarget: revisedTargetKey && r[revisedTargetKey]!=='' && r[revisedTargetKey]!=null && !isNaN(revisedRaw) && revisedRaw>0 ? revisedRaw : null
+        revisedTarget: revisedTargetKey && r[revisedTargetKey]!=='' && r[revisedTargetKey]!=null && !isNaN(revisedRaw) && revisedRaw>0 ? revisedRaw : null,
+        teamTarget: teamTargetKey && r[teamTargetKey]!=='' && r[teamTargetKey]!=null && !isNaN(teamTargetRaw) && teamTargetRaw>0 ? teamTargetRaw : null,
+        incentivePerExtra: incentiveKey && r[incentiveKey]!=='' && r[incentiveKey]!=null && !isNaN(incentiveRaw) && incentiveRaw>0 ? incentiveRaw : null
       };
     }).filter(r=>r.name && !/^total$/i.test(r.name));
 
@@ -2473,6 +2522,8 @@ async function fetchSheetData(){
   const weeklyAchievedIdx = cols.findIndex(c=>c.includes('weekly') && c.includes('achiev'));
   const revisedTargetIdx = cols.findIndex(c=>c.includes('revised'));
   const roleIdx = cols.findIndex(c=>c.includes('role'));
+  const teamTargetIdx = cols.findIndex(c=>c.includes('team') && c.includes('target'));
+  const incentiveIdx = cols.findIndex(c=>c.includes('incentive'));
   if(nameIdx<0 || targetIdx<0 || achievedIdx<0) throw new Error('columns-not-found');
 
   const people = json.table.rows.map(r=>{
@@ -2480,6 +2531,8 @@ async function fetchSheetData(){
     const weeklyRaw = weeklyTargetIdx>=0 ? Number(cells[weeklyTargetIdx]?.v) : NaN;
     const weeklyAchRaw = weeklyAchievedIdx>=0 ? Number(cells[weeklyAchievedIdx]?.v) : NaN;
     const revisedRaw = revisedTargetIdx>=0 ? Number(cells[revisedTargetIdx]?.v) : NaN;
+    const teamTargetRaw = teamTargetIdx>=0 ? Number(cells[teamTargetIdx]?.v) : NaN;
+    const incentiveRaw = incentiveIdx>=0 ? Number(cells[incentiveIdx]?.v) : NaN;
     return {
       name: cells[nameIdx]?.v,
       target: Number(cells[targetIdx]?.v)||0,
@@ -2488,7 +2541,9 @@ async function fetchSheetData(){
       role: roleIdx>=0 ? String(cells[roleIdx]?.v || '').trim().toLowerCase() : '',
       weeklyTarget: !isNaN(weeklyRaw) && weeklyRaw>0 ? weeklyRaw : null,
       weeklyAchievedFromSheet: weeklyAchievedIdx>=0 && cells[weeklyAchievedIdx]?.v!=null && !isNaN(weeklyAchRaw) ? weeklyAchRaw : null,
-      revisedTarget: revisedTargetIdx>=0 && cells[revisedTargetIdx]?.v!=null && !isNaN(revisedRaw) && revisedRaw>0 ? revisedRaw : null
+      revisedTarget: revisedTargetIdx>=0 && cells[revisedTargetIdx]?.v!=null && !isNaN(revisedRaw) && revisedRaw>0 ? revisedRaw : null,
+      teamTarget: teamTargetIdx>=0 && cells[teamTargetIdx]?.v!=null && !isNaN(teamTargetRaw) && teamTargetRaw>0 ? teamTargetRaw : null,
+      incentivePerExtra: incentiveIdx>=0 && cells[incentiveIdx]?.v!=null && !isNaN(incentiveRaw) && incentiveRaw>0 ? incentiveRaw : null
     };
   }).filter(r=>r.name);
 
@@ -2522,7 +2577,7 @@ async function syncData(){
       managers = managerRows.map(r=>{
         const existing = managers.find(m=>m.name===r.name);
         return {
-          name:r.name, target:r.target, achieved:r.achieved, weeklyTarget:r.weeklyTarget || null, weeklyAchievedFromSheet:r.weeklyAchievedFromSheet, revisedTarget:r.revisedTarget || null,
+          name:r.name, target:r.target, achieved:r.achieved, weeklyTarget:r.weeklyTarget || null, weeklyAchievedFromSheet:r.weeklyAchievedFromSheet, revisedTarget:r.revisedTarget || null, teamTarget:r.teamTarget || null, incentivePerExtra:r.incentivePerExtra || null,
           prevAchieved: existing ? existing.achieved : r.achieved,
           history: existing ? existing.history : []
         };
@@ -2571,6 +2626,7 @@ async function syncData(){
     renderTopTls();
     renderCounselorGroups();
     renderTopCounselors();
+    renderTeamTargets();
     renderWeeklyTargets();
     renderRevisedTargets();
     updateCharts(agg);
@@ -2613,12 +2669,13 @@ document.getElementById('searchInput').addEventListener('input', e=>{
   renderTopTls();
   renderCounselorGroups();
   renderTopCounselors();
+  renderTeamTargets();
   renderWeeklyTargets();
   renderRevisedTargets();
 });
 
 let tvRotateTimer = null;
-const TV_PAGES = ['page-leaderboard','page-tls','page-counselors','page-charts','page-mom','page-weekly','page-revised'];
+const TV_PAGES = ['page-leaderboard','page-tls','page-counselors','page-teamtarget','page-charts','page-weekly','page-revised'];
 let tvPageIndex = 0;
 
 // only rotate through pages that currently have content — a conditional
