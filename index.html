@@ -1887,7 +1887,7 @@ function renderTLGroups(){
     `;
     const cardHolder = section.querySelector('.tl-cards');
     groupTls.forEach((t,i)=>{
-      const card = buildCard(t, i+1, {}, {showTarget:false});
+      const card = buildCard(t, i+1, {}, {hideSparkline:true, ds: dateStats()});
       card.classList.add('tl-card');
       card.style.opacity='0'; card.style.transform='translateY(10px)';
       cardHolder.appendChild(card);
@@ -1897,8 +1897,15 @@ function renderTLGroups(){
       });
 
       countUp(card.querySelector('[data-role="achv"]'), t.achieved);
+      const remaining = Math.max(0, t.target - t.achieved);
+      countUp(card.querySelector('[data-role="rem"]'), remaining);
+      const pct = t.target ? (t.achieved/t.target*100) : 0;
+      countUp(card.querySelector('[data-role="pct"]'), pct, {decimals:1, suffix:'%'});
+      const bar = card.querySelector('[data-role="bar"]');
+      if(bar) requestAnimationFrame(()=> bar.style.width = Math.min(100,pct)+'%');
       if(t.achieved !== t.prevAchieved){
         flashCard(card);
+        if(bar){ bar.classList.add('pulse'); setTimeout(()=>bar.classList.remove('pulse'), 1000); }
         checkMilestone(t.name, t.target, t.prevAchieved, t.achieved, card);
       }
     });
@@ -1924,9 +1931,15 @@ function renderTopTls(){
 
   board.innerHTML = '';
   top5.forEach((t,i)=>{
-    const card = buildCard(t, i+1, {}, {showTarget:false});
+    const card = buildCard(t, i+1, {}, {hideSparkline:true, ds: dateStats()});
     board.appendChild(card);
     countUp(card.querySelector('[data-role="achv"]'), t.achieved);
+    const remaining = Math.max(0, t.target - t.achieved);
+    countUp(card.querySelector('[data-role="rem"]'), remaining);
+    const pct = t.target ? (t.achieved/t.target*100) : 0;
+    countUp(card.querySelector('[data-role="pct"]'), pct, {decimals:1, suffix:'%'});
+    const bar = card.querySelector('[data-role="bar"]');
+    if(bar) requestAnimationFrame(()=> bar.style.width = Math.min(100,pct)+'%');
   });
 }
 
