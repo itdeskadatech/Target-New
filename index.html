@@ -346,6 +346,7 @@ body.tv-rotate .tv-page.active{ display:block; animation: pageIn .5s ease; }
 .tt-bonus-banner .tt-bonus-title{ font-size:11px; color:var(--green); font-weight:700; letter-spacing:.4px; text-transform:uppercase; }
 .tt-bonus-banner .tt-bonus-amount{ font-family:'Space Grotesk'; font-weight:800; font-size:22px; color:var(--green); margin-top:4px; }
 .tt-bonus-banner .tt-bonus-detail{ font-size:10.5px; color:var(--muted); margin-top:2px; }
+.tt-incentive-preview{ margin-top:12px; font-size:11px; color:var(--muted); text-align:center; }
 
 #confettiCanvas{ position:fixed; inset:0; pointer-events:none; z-index:80; }
 
@@ -846,6 +847,14 @@ body.tv h1{ font-size:36px; }
     <h2>🎯 Counselor Targets <span class="tag">Incentive Tracker</span></h2>
   </div>
   <div class="team-target-grid" id="teamTargetGrid"></div>
+</div>
+
+<!-- ============ TL TARGETS + INCENTIVE (only shown if the sheet has TLs) ============ -->
+<div class="tv-page" id="page-tlteamtarget" style="display:none;">
+  <div class="section-head">
+    <h2>🎯 Team Lead Targets <span class="tag">Incentive Tracker</span></h2>
+  </div>
+  <div class="team-target-grid" id="tlTeamTargetGrid"></div>
 </div>
 
 <!-- ============ WEEKLY TARGETS (only shown if the sheet has a "Weekly" column) ============ -->
@@ -2092,6 +2101,82 @@ function renderTeamTargets(){
           <div class="tt-bonus-title" style="color:var(--gold);">🎯 ${extra} Over Target</div>
           <div class="tt-bonus-detail">Set an "Incentive" value on ${c.reportsTo || 'their manager'}'s row to auto-calculate the bonus</div>
         </div>
+      ` : incentiveRate ? `
+        <div class="tt-incentive-preview">💰 ₹${incentiveRate} per extra admission once target is crossed</div>
+      ` : ''}
+    `;
+    grid.appendChild(card);
+  });
+}
+
+/* =========================================================================
+   RENDER: TL TARGETS + INCENTIVE — identical card design to Counselor
+   Targets, but sourced from the tls array. Uses each TL's own Target and
+   Achieved, with the incentive rate looked up from their reporting Manager.
+   ========================================================================= */
+function renderTlTeamTargets(){
+  const page = document.getElementById('page-tlteamtarget');
+  const grid = document.getElementById('tlTeamTargetGrid');
+  if(!page || !grid) return;
+
+  if(tls.length === 0){
+    page.style.display = 'none';
+    grid.innerHTML = '';
+    return;
+  }
+  page.style.display = '';
+
+  const filtered = tls.filter(t => t.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  if(filtered.length === 0){
+    grid.innerHTML = `<div class="empty-state">No matches for "${searchTerm}"</div>`;
+    return;
+  }
+
+  const sorted = [...filtered].sort((a,b)=>{
+    const aPct = a.target ? a.achieved/a.target : 0;
+    const bPct = b.target ? b.achieved/b.target : 0;
+    return bPct - aPct;
+  });
+
+  grid.innerHTML = '';
+  sorted.forEach(t=>{
+    const manager = managers.find(m => m.name === t.reportsTo);
+    const incentiveRate = manager ? manager.incentivePerExtra : null;
+
+    const remaining = Math.max(0, t.target - t.achieved);
+    const extra = Math.max(0, t.achieved - t.target);
+    const pct = t.target ? (t.achieved/t.target*100) : 0;
+    const bonusEarned = extra > 0 && incentiveRate ? extra * incentiveRate : 0;
+
+    const card = document.createElement('div');
+    card.className = 'team-target-card' + (bonusEarned>0 ? ' bonus-earned' : '');
+    card.innerHTML = `
+      <div class="tt-head">
+        <div class="tt-avatar">${initials(t.name)}</div>
+        <div>
+          <div class="tt-name">${t.name}</div>
+          <div class="tt-sub">Reports to ${t.reportsTo || '—'}</div>
+        </div>
+      </div>
+      <div class="tt-stats">
+        <div class="tt-stat"><div class="v">${t.target}</div><div class="l">Target</div></div>
+        <div class="tt-stat achv"><div class="v">${t.achieved}</div><div class="l">Achieved</div></div>
+        <div class="tt-stat rem"><div class="v">${remaining}</div><div class="l">Remaining</div></div>
+      </div>
+      <div class="tt-progress-track"><div class="tt-progress-fill ${pct>=100?'maxed':''}" style="width:${Math.min(100,pct)}%"></div></div>
+      ${bonusEarned>0 ? `
+        <div class="tt-bonus-banner">
+          <div class="tt-bonus-title">🎉 Target Exceeded — Bonus Earned</div>
+          <div class="tt-bonus-amount">₹${bonusEarned.toLocaleString()}</div>
+          <div class="tt-bonus-detail">${extra} extra admission${extra===1?'':'s'} × ₹${incentiveRate}/extra</div>
+        </div>
+      ` : extra>0 ? `
+        <div class="tt-bonus-banner" style="background:rgba(245,196,81,.08); border-color:rgba(245,196,81,.35);">
+          <div class="tt-bonus-title" style="color:var(--gold);">🎯 ${extra} Over Target</div>
+          <div class="tt-bonus-detail">Set an "Incentive" value on ${t.reportsTo || 'their manager'}'s row to auto-calculate the bonus</div>
+        </div>
+      ` : incentiveRate ? `
+        <div class="tt-incentive-preview">💰 ₹${incentiveRate} per extra admission once target is crossed</div>
       ` : ''}
     `;
     grid.appendChild(card);
@@ -2627,6 +2712,7 @@ async function syncData(){
     renderCounselorGroups();
     renderTopCounselors();
     renderTeamTargets();
+    renderTlTeamTargets();
     renderWeeklyTargets();
     renderRevisedTargets();
     updateCharts(agg);
@@ -2670,12 +2756,13 @@ document.getElementById('searchInput').addEventListener('input', e=>{
   renderCounselorGroups();
   renderTopCounselors();
   renderTeamTargets();
+  renderTlTeamTargets();
   renderWeeklyTargets();
   renderRevisedTargets();
 });
 
 let tvRotateTimer = null;
-const TV_PAGES = ['page-leaderboard','page-tls','page-counselors','page-teamtarget','page-charts','page-weekly','page-revised'];
+const TV_PAGES = ['page-leaderboard','page-tls','page-counselors','page-teamtarget','page-tlteamtarget','page-charts','page-weekly','page-revised'];
 let tvPageIndex = 0;
 
 // only rotate through pages that currently have content — a conditional
