@@ -347,6 +347,7 @@ body.tv-rotate .tv-page.active{ display:block; animation: pageIn .5s ease; }
 .tt-bonus-banner .tt-bonus-amount{ font-family:'Space Grotesk'; font-weight:800; font-size:22px; color:var(--green); margin-top:4px; }
 .tt-bonus-banner .tt-bonus-detail{ font-size:10.5px; color:var(--muted); margin-top:2px; }
 .tt-incentive-preview{ margin-top:12px; font-size:11px; color:var(--muted); text-align:center; }
+.tt-incentive-preview b{ color:var(--orange2); font-family:'Space Grotesk'; }
 
 #confettiCanvas{ position:fixed; inset:0; pointer-events:none; z-index:80; }
 
@@ -850,13 +851,6 @@ body.tv h1{ font-size:36px; }
 </div>
 
 <!-- ============ TL TARGETS + INCENTIVE (only shown if the sheet has TLs) ============ -->
-<div class="tv-page" id="page-tlteamtarget" style="display:none;">
-  <div class="section-head">
-    <h2>🎯 Team Lead Targets <span class="tag">Incentive Tracker</span></h2>
-  </div>
-  <div class="team-target-grid" id="tlTeamTargetGrid"></div>
-</div>
-
 <!-- ============ WEEKLY TARGETS (only shown if the sheet has a "Weekly" column) ============ -->
 <div class="tv-page" id="page-weekly" style="display:none;">
   <div class="section-head">
@@ -2079,16 +2073,22 @@ function renderTeamTargets(){
 
   grid.innerHTML = '';
   sorted.forEach(c=>{
-    const manager = managers.find(m => m.name === c.reportsTo);
+    const manager = managers.find(m => m.name.trim().toLowerCase() === (c.reportsTo||'').trim().toLowerCase());
     const incentiveRate = manager ? manager.incentivePerExtra : null;
+    const flatReward = manager ? manager.flatReward : null;
 
     const remaining = Math.max(0, c.target - c.achieved);
     const extra = Math.max(0, c.achieved - c.target);
     const pct = c.target ? (c.achieved/c.target*100) : 0;
-    const bonusEarned = extra > 0 && incentiveRate ? extra * incentiveRate : 0;
+    const hasEarnings = flatReward || incentiveRate;
+    // total earned once target is hit: the flat reward, plus the per-extra
+    // rate for every admission beyond target
+    const totalEarned = c.achieved >= c.target && c.target > 0
+      ? (flatReward||0) + extra * (incentiveRate||0)
+      : 0;
 
     const card = document.createElement('div');
-    card.className = 'team-target-card' + (bonusEarned>0 ? ' bonus-earned' : '');
+    card.className = 'team-target-card' + (totalEarned>0 ? ' bonus-earned' : '');
     card.innerHTML = `
       <div class="tt-head">
         <div class="tt-avatar">${initials(c.name)}</div>
@@ -2103,94 +2103,21 @@ function renderTeamTargets(){
         <div class="tt-stat rem"><div class="v">${remaining}</div><div class="l">Remaining</div></div>
       </div>
       <div class="tt-progress-track"><div class="tt-progress-fill ${pct>=100?'maxed':''}" style="width:${Math.min(100,pct)}%"></div></div>
-      ${bonusEarned>0 ? `
+      ${totalEarned>0 ? `
         <div class="tt-bonus-banner">
-          <div class="tt-bonus-title">🎉 Target Exceeded — Bonus Earned</div>
-          <div class="tt-bonus-amount">₹${bonusEarned.toLocaleString()}</div>
-          <div class="tt-bonus-detail">${extra} extra admission${extra===1?'':'s'} × ₹${incentiveRate}/extra</div>
+          <div class="tt-bonus-title">🎉 Incentive Earned</div>
+          <div class="tt-bonus-amount">₹${totalEarned.toLocaleString()}</div>
+          <div class="tt-bonus-detail">
+            ${flatReward ? `₹${flatReward.toLocaleString()} for hitting target` : ''}
+            ${flatReward && extra>0 && incentiveRate ? ' + ' : ''}
+            ${extra>0 && incentiveRate ? `${extra} extra × ₹${incentiveRate}` : ''}
+          </div>
         </div>
-      ` : extra>0 ? `
-        <div class="tt-bonus-banner" style="background:rgba(245,196,81,.08); border-color:rgba(245,196,81,.35);">
-          <div class="tt-bonus-title" style="color:var(--gold);">🎯 ${extra} Over Target</div>
-          <div class="tt-bonus-detail">Set an "Incentive" value on ${c.reportsTo || 'their manager'}'s row to auto-calculate the bonus</div>
-        </div>
-      ` : incentiveRate ? `
-        <div class="tt-incentive-preview">💰 ₹${incentiveRate} per extra admission once target is crossed</div>
-      ` : ''}
-    `;
-    grid.appendChild(card);
-  });
-}
-
-/* =========================================================================
-   RENDER: TL TARGETS + INCENTIVE — identical card design to Counselor
-   Targets, but sourced from the tls array. Uses each TL's own Target and
-   Achieved, with the incentive rate looked up from their reporting Manager.
-   ========================================================================= */
-function renderTlTeamTargets(){
-  const page = document.getElementById('page-tlteamtarget');
-  const grid = document.getElementById('tlTeamTargetGrid');
-  if(!page || !grid) return;
-
-  if(tls.length === 0){
-    page.style.display = 'none';
-    grid.innerHTML = '';
-    return;
-  }
-  page.style.display = '';
-
-  const filtered = tls.filter(t => t.name.toLowerCase().includes(searchTerm.toLowerCase()));
-  if(filtered.length === 0){
-    grid.innerHTML = `<div class="empty-state">No matches for "${searchTerm}"</div>`;
-    return;
-  }
-
-  const sorted = [...filtered].sort((a,b)=>{
-    const aPct = a.target ? a.achieved/a.target : 0;
-    const bPct = b.target ? b.achieved/b.target : 0;
-    return bPct - aPct;
-  });
-
-  grid.innerHTML = '';
-  sorted.forEach(t=>{
-    const manager = managers.find(m => m.name === t.reportsTo);
-    const incentiveRate = manager ? manager.incentivePerExtra : null;
-
-    const remaining = Math.max(0, t.target - t.achieved);
-    const extra = Math.max(0, t.achieved - t.target);
-    const pct = t.target ? (t.achieved/t.target*100) : 0;
-    const bonusEarned = extra > 0 && incentiveRate ? extra * incentiveRate : 0;
-
-    const card = document.createElement('div');
-    card.className = 'team-target-card' + (bonusEarned>0 ? ' bonus-earned' : '');
-    card.innerHTML = `
-      <div class="tt-head">
-        <div class="tt-avatar">${initials(t.name)}</div>
-        <div>
-          <div class="tt-name">${t.name}</div>
-          <div class="tt-sub">Reports to ${t.reportsTo || '—'}</div>
-        </div>
-      </div>
-      <div class="tt-stats">
-        <div class="tt-stat"><div class="v">${t.target}</div><div class="l">Target</div></div>
-        <div class="tt-stat achv"><div class="v">${t.achieved}</div><div class="l">Achieved</div></div>
-        <div class="tt-stat rem"><div class="v">${remaining}</div><div class="l">Remaining</div></div>
-      </div>
-      <div class="tt-progress-track"><div class="tt-progress-fill ${pct>=100?'maxed':''}" style="width:${Math.min(100,pct)}%"></div></div>
-      ${bonusEarned>0 ? `
-        <div class="tt-bonus-banner">
-          <div class="tt-bonus-title">🎉 Target Exceeded — Bonus Earned</div>
-          <div class="tt-bonus-amount">₹${bonusEarned.toLocaleString()}</div>
-          <div class="tt-bonus-detail">${extra} extra admission${extra===1?'':'s'} × ₹${incentiveRate}/extra</div>
-        </div>
-      ` : extra>0 ? `
-        <div class="tt-bonus-banner" style="background:rgba(245,196,81,.08); border-color:rgba(245,196,81,.35);">
-          <div class="tt-bonus-title" style="color:var(--gold);">🎯 ${extra} Over Target</div>
-          <div class="tt-bonus-detail">Set an "Incentive" value on ${t.reportsTo || 'their manager'}'s row to auto-calculate the bonus</div>
-        </div>
-      ` : incentiveRate ? `
-        <div class="tt-incentive-preview">💰 ₹${incentiveRate} per extra admission once target is crossed</div>
-      ` : ''}
+      ` : !hasEarnings && remaining===0 ? '' : remaining > 0 ? `
+        <div class="tt-incentive-preview">💰 <b>${remaining}</b> more to earn ${flatReward ? `₹${flatReward.toLocaleString()}` : incentiveRate ? `₹${incentiveRate}/extra` : ''} incentive</div>
+      ` : `
+        <div class="tt-incentive-preview" style="color:var(--gold);">🎯 Right at target — next admission starts earning!</div>
+      `}
     `;
     grid.appendChild(card);
   });
@@ -2490,6 +2417,7 @@ function rowsToManagers(rows){
   const roleIdx = header.findIndex(c=>c==='role' || c.includes('role'));
   const teamTargetIdx = header.findIndex(c=>c.includes('team') && c.includes('target'));
   const incentiveIdx = header.findIndex(c=>c.includes('incentive'));
+  const flatRewardIdx = header.findIndex(c=>c.includes('flat') && c.includes('reward'));
   if(nameIdx<0 || targetIdx<0 || achievedIdx<0) throw new Error('columns-not-found');
 
   const people = rows.slice(1).map(r=>{
@@ -2498,6 +2426,7 @@ function rowsToManagers(rows){
     const revisedRaw = revisedTargetIdx>=0 ? Number((r[revisedTargetIdx]||'').replace(/,/g,'')) : NaN;
     const teamTargetRaw = teamTargetIdx>=0 ? Number((r[teamTargetIdx]||'').replace(/,/g,'')) : NaN;
     const incentiveRaw = incentiveIdx>=0 ? Number((r[incentiveIdx]||'').replace(/,/g,'')) : NaN;
+    const flatRewardRaw = flatRewardIdx>=0 ? Number((r[flatRewardIdx]||'').replace(/,/g,'')) : NaN;
     return {
       name: (r[nameIdx]||'').trim(),
       target: Number((r[targetIdx]||'0').replace(/,/g,'')) || 0,
@@ -2508,6 +2437,7 @@ function rowsToManagers(rows){
       weeklyAchievedFromSheet: weeklyAchievedIdx>=0 && r[weeklyAchievedIdx]!=='' && !isNaN(weeklyAchRaw) ? weeklyAchRaw : null,
       revisedTarget: revisedTargetIdx>=0 && r[revisedTargetIdx]!=='' && !isNaN(revisedRaw) && revisedRaw>0 ? revisedRaw : null,
       teamTarget: teamTargetIdx>=0 && r[teamTargetIdx]!=='' && !isNaN(teamTargetRaw) && teamTargetRaw>0 ? teamTargetRaw : null,
+      flatReward: flatRewardIdx>=0 && r[flatRewardIdx]!=='' && !isNaN(flatRewardRaw) && flatRewardRaw>0 ? flatRewardRaw : null,
       incentivePerExtra: incentiveIdx>=0 && r[incentiveIdx]!=='' && !isNaN(incentiveRaw) && incentiveRaw>0 ? incentiveRaw : null
     };
   }).filter(r=>r.name && !/^total$/i.test(r.name));
@@ -2552,6 +2482,7 @@ async function fetchSheetData(){
     const roleKey = findKey('role');
     const teamTargetKey = Object.keys(data[0]).find(k=>{ const kl=k.toLowerCase(); return kl.includes('team') && kl.includes('target'); });
     const incentiveKey = findKey('incentive');
+    const flatRewardKey = Object.keys(data[0]).find(k=>{ const kl=k.toLowerCase(); return kl.includes('flat') && kl.includes('reward'); });
     if(!nameKey || !targetKey || !achievedKey) throw new Error('columns-not-found');
     const people = data.map(r=>{
       const weeklyRaw = weeklyTargetKey ? Number(r[weeklyTargetKey]) : NaN;
@@ -2559,6 +2490,7 @@ async function fetchSheetData(){
       const revisedRaw = revisedTargetKey ? Number(r[revisedTargetKey]) : NaN;
       const teamTargetRaw = teamTargetKey ? Number(r[teamTargetKey]) : NaN;
       const incentiveRaw = incentiveKey ? Number(r[incentiveKey]) : NaN;
+      const flatRewardRaw = flatRewardKey ? Number(r[flatRewardKey]) : NaN;
       return {
         name: String(r[nameKey]||'').trim(),
         target: Number(r[targetKey])||0,
@@ -2569,6 +2501,7 @@ async function fetchSheetData(){
         weeklyAchievedFromSheet: weeklyAchievedKey && r[weeklyAchievedKey]!=='' && r[weeklyAchievedKey]!=null && !isNaN(weeklyAchRaw) ? weeklyAchRaw : null,
         revisedTarget: revisedTargetKey && r[revisedTargetKey]!=='' && r[revisedTargetKey]!=null && !isNaN(revisedRaw) && revisedRaw>0 ? revisedRaw : null,
         teamTarget: teamTargetKey && r[teamTargetKey]!=='' && r[teamTargetKey]!=null && !isNaN(teamTargetRaw) && teamTargetRaw>0 ? teamTargetRaw : null,
+        flatReward: flatRewardKey && r[flatRewardKey]!=='' && r[flatRewardKey]!=null && !isNaN(flatRewardRaw) && flatRewardRaw>0 ? flatRewardRaw : null,
         incentivePerExtra: incentiveKey && r[incentiveKey]!=='' && r[incentiveKey]!=null && !isNaN(incentiveRaw) && incentiveRaw>0 ? incentiveRaw : null
       };
     }).filter(r=>r.name && !/^total$/i.test(r.name));
@@ -2622,6 +2555,7 @@ async function fetchSheetData(){
   const roleIdx = cols.findIndex(c=>c.includes('role'));
   const teamTargetIdx = cols.findIndex(c=>c.includes('team') && c.includes('target'));
   const incentiveIdx = cols.findIndex(c=>c.includes('incentive'));
+  const flatRewardIdx = cols.findIndex(c=>c.includes('flat') && c.includes('reward'));
   if(nameIdx<0 || targetIdx<0 || achievedIdx<0) throw new Error('columns-not-found');
 
   const people = json.table.rows.map(r=>{
@@ -2631,6 +2565,7 @@ async function fetchSheetData(){
     const revisedRaw = revisedTargetIdx>=0 ? Number(cells[revisedTargetIdx]?.v) : NaN;
     const teamTargetRaw = teamTargetIdx>=0 ? Number(cells[teamTargetIdx]?.v) : NaN;
     const incentiveRaw = incentiveIdx>=0 ? Number(cells[incentiveIdx]?.v) : NaN;
+    const flatRewardRaw = flatRewardIdx>=0 ? Number(cells[flatRewardIdx]?.v) : NaN;
     return {
       name: cells[nameIdx]?.v,
       target: Number(cells[targetIdx]?.v)||0,
@@ -2641,6 +2576,7 @@ async function fetchSheetData(){
       weeklyAchievedFromSheet: weeklyAchievedIdx>=0 && cells[weeklyAchievedIdx]?.v!=null && !isNaN(weeklyAchRaw) ? weeklyAchRaw : null,
       revisedTarget: revisedTargetIdx>=0 && cells[revisedTargetIdx]?.v!=null && !isNaN(revisedRaw) && revisedRaw>0 ? revisedRaw : null,
       teamTarget: teamTargetIdx>=0 && cells[teamTargetIdx]?.v!=null && !isNaN(teamTargetRaw) && teamTargetRaw>0 ? teamTargetRaw : null,
+      flatReward: flatRewardIdx>=0 && cells[flatRewardIdx]?.v!=null && !isNaN(flatRewardRaw) && flatRewardRaw>0 ? flatRewardRaw : null,
       incentivePerExtra: incentiveIdx>=0 && cells[incentiveIdx]?.v!=null && !isNaN(incentiveRaw) && incentiveRaw>0 ? incentiveRaw : null
     };
   }).filter(r=>r.name);
@@ -2675,7 +2611,7 @@ async function syncData(){
       managers = managerRows.map(r=>{
         const existing = managers.find(m=>m.name===r.name);
         return {
-          name:r.name, target:r.target, achieved:r.achieved, weeklyTarget:r.weeklyTarget || null, weeklyAchievedFromSheet:r.weeklyAchievedFromSheet, revisedTarget:r.revisedTarget || null, teamTarget:r.teamTarget || null, incentivePerExtra:r.incentivePerExtra || null,
+          name:r.name, target:r.target, achieved:r.achieved, weeklyTarget:r.weeklyTarget || null, weeklyAchievedFromSheet:r.weeklyAchievedFromSheet, revisedTarget:r.revisedTarget || null, teamTarget:r.teamTarget || null, flatReward:r.flatReward || null, incentivePerExtra:r.incentivePerExtra || null,
           prevAchieved: existing ? existing.achieved : r.achieved,
           history: existing ? existing.history : []
         };
@@ -2725,7 +2661,6 @@ async function syncData(){
     renderCounselorGroups();
     renderTopCounselors();
     renderTeamTargets();
-    renderTlTeamTargets();
     renderWeeklyTargets();
     renderRevisedTargets();
     updateCharts(agg);
@@ -2769,13 +2704,12 @@ document.getElementById('searchInput').addEventListener('input', e=>{
   renderCounselorGroups();
   renderTopCounselors();
   renderTeamTargets();
-  renderTlTeamTargets();
   renderWeeklyTargets();
   renderRevisedTargets();
 });
 
 let tvRotateTimer = null;
-const TV_PAGES = ['page-leaderboard','page-tls','page-counselors','page-teamtarget','page-tlteamtarget','page-charts','page-weekly','page-revised'];
+const TV_PAGES = ['page-leaderboard','page-tls','page-counselors','page-teamtarget','page-charts','page-weekly','page-revised'];
 let tvPageIndex = 0;
 
 // only rotate through pages that currently have content — a conditional
